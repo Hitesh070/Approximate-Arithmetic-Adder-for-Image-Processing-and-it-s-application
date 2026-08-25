@@ -1,0 +1,30 @@
+1st paper: "Approximate Arithmetic Circuits Enabling Energy-Efficient Edge Computing"
+
+(  in this paper they are physicaly designing, ie they program the FPGA, a circuit with less number of gates and implementing it in a FPGA )
+
+AI models are surprisingly resilient; they don't always need 100% mathematical perfection to recognize an image or make a decision. If an arithmetic circuit is mostly right, the AI still works fine. So, instead of designing a perfect digital adder or multiplier, engineers design Approximate Operators (AxOs). By intentionally making the circuit slightly less accurate, they can drastically reduce the number of logic gates required. Less logic means it runs faster, uses less power, and takes up less physical space on the chip.
+
+The study focuses on Field Programmable Gate Arrays (FPGAs), noting that approximation methods must be platform-specific. Unlike ASIC designs where individual gates are pruned, FPGA approximations require selectively removing Lookup Tables (LUTs) and Carry-Chains. The methodology highlights two distinct approaches to finding these operators:  Selection vs. Synthesis: The Selection method relies on picking the best-fit operator from a predefined library (like EvoApprox), which is simpler but limits fine-tuning. Conversely, the Synthesis method (such as the AppAxO framework) uses configuration bit strings to systematically disable specific LUTs, generating highly customized, application-specific AxOs.  Design Space Exploration (DSE): Because the synthesis approach creates a massive number of potential designs, the authors evaluate automated search algorithms. They map out the use of Genetic Algorithms (GA) to iteratively refine designs. To avoid the massive computational cost of simulating every new design, the methodology incorporates AI/ML regression models to predict PPA and behavioral accuracy (BEHAV). The paper also discusses emerging avenues like Generative AI (GANs) for synthesizing novel designs and Explainable AI (xAI) for guiding search algorithms.
+
+Implementing cross-layer approximations—such as substituting an accurate operator with an AxO in convolution operations—can yield nearly a 20% reduction in energy usage while maintaining a comparable Peak Signal-to-Noise Ratio (PSNR) to standard algorithmic approximations.
+
+2nd paper: "Approximate Computing: Concepts, Architectures, Challenges, Applications, and Future Directions"
+
+unlike previous paper this one discuss about 4 levels of system design
+
+Data-Level: Using techniques like sampling, quantization, and compression to reduce the sheer volume of data being processed.
+
+Software-Level: Designing algorithms that exhibit a probabilistic nature or can inherently tolerate noisy, real-world data without breaking.
+
+Architecture-Level: Designing entire system layouts (like multicore processors) to manage power consumption and distribute approximate workloads effectively.
+
+Circuit (Hardware) Level: Re-engineering physical transistors, adders, and multipliers to use fewer resources.
+
+paper points out up to 83% of modern computing tasks are "error-resilient", it also explains that the industry is struggling to build automated testing software that knows the difference between "good wrong" and "bad wrong." 
+
+Overall this paper just talks about the types by which approximations can be used, also that approximate calculations in not a myth anymore.
+
+3rd paper: "Performance Improvement of Processor Through Configurable Approximate Arithmetic Units in Multicore Systems"
+
+
+

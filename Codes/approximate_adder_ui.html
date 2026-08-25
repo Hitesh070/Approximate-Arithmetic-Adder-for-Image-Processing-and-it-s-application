@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Approximate Adder — IEEE Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0c10; --surf:#111318; --surf2:#181c24;
+  --bdr:rgba(255,255,255,0.07); --bdr2:rgba(255,255,255,0.13);
+  --txt:#e8eaf0; --txt2:#7a7f8e; --txt3:#4a4f5e;
+  --acc:#4f8ef7; --purple:#7c5cfc;
+  --amber:#f7b84f; --amber-d:rgba(247,184,79,0.12);
+  --green:#4fd68a; --green-d:rgba(79,214,138,0.1);
+  --red:#f75b5b;   --blue-d:rgba(79,142,247,0.1);
+  --mono:'Space Mono',monospace; --sans:'DM Sans',sans-serif;
+  --split:4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:var(--sans);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(79,142,247,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(79,142,247,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+.wrap{max-width:1100px;margin:0 auto;padding:2rem 1.5rem 4rem;position:relative;z-index:1}
+header{margin-bottom:2.5rem}
+.tag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--acc);background:var(--blue-d);border:1px solid rgba(79,142,247,.2);padding:4px 10px;border-radius:4px;margin-bottom:10px}
+h1{font-family:var(--mono);font-size:clamp(17px,3vw,25px);font-weight:700;line-height:1.2;letter-spacing:-.02em}
+h1 span{color:var(--acc)}
+.subtitle{font-size:13px;color:var(--txt2);margin-top:6px;line-height:1.6}
+.card{background:var(--surf);border:1px solid var(--bdr);border-radius:12px;padding:1.5rem;margin-bottom:1rem}
+.ctitle{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--txt2);margin-bottom:1.25rem;display:flex;align-items:center;gap:8px}
+.ctitle::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--acc)}
+.igrid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+@media(max-width:600px){.igrid,.rgrid,.inf-grid{grid-template-columns:1fr}}
+.iblk label{display:block;font-size:12px;color:var(--txt2);margin-bottom:8px;font-family:var(--mono);letter-spacing:.05em}
+input[type=number]{width:100%;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:var(--mono);font-size:22px;font-weight:700;padding:14px 16px;outline:none;transition:border-color .2s;-moz-appearance:textfield}
+input[type=number]::-webkit-inner-spin-button{display:none}
+input[type=number]:focus{border-color:var(--acc)}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;background:var(--surf2);border-radius:2px;outline:none;margin-top:10px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--acc);cursor:pointer;box-shadow:0 0 8px rgba(79,142,247,.5)}
+.bindsp{font-family:var(--mono);font-size:13px;color:var(--txt3);margin-top:8px;letter-spacing:.05em}
+.bindsp span{color:var(--txt2)}
+/* ── Bit rows ── */
+.op-row{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:nowrap;overflow-x:auto}
+.op-lbl{font-family:var(--mono);font-size:12px;color:var(--txt2);width:22px;flex-shrink:0;text-align:right}
+.bits{display:flex;gap:3px}
+.bc{width:34px;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;font-weight:700;border:1px solid var(--bdr);transition:all .25s;position:relative;flex-shrink:0}
+.bc.pos-lbl{height:18px;border-color:transparent;background:transparent;font-size:10px;font-weight:400;color:var(--txt3)}
+.bc.split-lbl{height:18px;border-color:transparent;background:transparent;font-size:9px;font-weight:700;color:var(--amber);letter-spacing:0}
+.bc.acc{background:rgba(79,142,247,.08);border-color:rgba(79,142,247,.25);color:#8ab8ff}
+.bc.inacc-in{background:rgba(247,184,79,.1);border-color:rgba(247,184,79,.3);color:var(--amber)}
+.bc.res-acc{background:rgba(79,214,138,.08);border-color:rgba(79,214,138,.25);color:var(--green)}
+.bc.res-forced{background:rgba(247,184,79,.18);border-color:rgba(247,184,79,.55);color:var(--amber);box-shadow:0 0 8px rgba(247,184,79,.22)}
+.bc.exact{background:rgba(124,92,252,.08);border-color:rgba(124,92,252,.25);color:#b49dff}
+.bc.divider{width:4px;height:34px;background:rgba(247,184,79,.5);border-radius:2px;flex-shrink:0;border:none;margin:0 2px}
+.bc.divider-pos{width:4px;height:18px;background:transparent;border:none;flex-shrink:0;margin:0 2px}
+@keyframes pulse-amber{0%,100%{box-shadow:0 0 0 0 rgba(247,184,79,0)}50%{box-shadow:0 0 0 4px rgba(247,184,79,.25)}}
+.trig{animation:pulse-amber 1.8s ease-in-out infinite}
+.region-bar{display:flex;gap:3px;padding-left:28px;margin-bottom:8px}
+.rb{height:3px;border-radius:2px;flex-shrink:0;width:34px}
+.rb.acc{background:rgba(79,142,247,.4)}  .rb.inacc{background:rgba(247,184,79,.55)}
+.rb.div-rb{width:8px;background:transparent}
+.section-label-row{display:flex;gap:6px;padding-left:28px;margin-bottom:4px;align-items:center}
+.slbl{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);text-align:center}
+.divider-row{display:flex;align-items:center;gap:8px;margin:6px 0 10px;padding-left:28px}
+.dline{flex:1;height:1px;background:var(--bdr2)}
+.dlbl{font-family:var(--mono);font-size:10px;color:var(--txt3);white-space:nowrap}
+/* ── Result cards ── */
+.rgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1rem}
+@media(max-width:700px){.rgrid{grid-template-columns:repeat(2,1fr)}}
+.rc{background:var(--surf2);border:1px solid var(--bdr);border-radius:10px;padding:14px 16px}
+.rc .rl{font-size:10px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:6px}
+.rc .rv{font-family:var(--mono);font-size:22px;font-weight:700;line-height:1}
+.rc .rs{font-size:11px;color:var(--txt3);margin-top:4px}
+.c-blu{color:#8ab8ff} .c-pur{color:#b49dff} .c-grn{color:var(--green)} .c-amb{color:var(--amber)} .c-red{color:var(--red)}
+/* ── Error bar ── */
+.ebar-wrap{margin-top:.75rem}
+.ebar-hdr{font-size:11px;color:var(--txt2);margin-bottom:6px;display:flex;justify-content:space-between}
+.ebar-track{width:100%;height:8px;background:var(--surf2);border-radius:4px;overflow:hidden}
+.ebar-fill{height:100%;border-radius:4px;transition:width .4s,background .3s}
+/* ── Equation ── */
+.eq{font-family:var(--mono);font-size:15px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 0}
+.eq-n{font-size:20px;font-weight:700} .eq-op{color:var(--txt2)} .eq-eq{color:var(--acc);font-size:18px}
+.eq-ap{color:var(--amber)} .eq-ex{color:#b49dff}
+.ovf{font-size:10px;padding:3px 8px;background:rgba(247,91,91,.1);color:var(--red);border:1px solid rgba(247,91,91,.2);border-radius:4px;margin-left:4px}
+/* ── Carry ── */
+.carry-info{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surf2);border:1px solid rgba(79,214,138,.15);border-radius:8px;margin-top:.75rem;font-size:12px;color:var(--txt2)}
+.cbadge{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:4px;background:rgba(79,214,138,.1);color:var(--green);border:1px solid rgba(79,214,138,.2);white-space:nowrap}
+/* ── Inference grid ── */
+.inf-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:700px){.inf-grid{grid-template-columns:1fr}}
+.ib{background:var(--surf2);border:1px solid var(--bdr);border-radius:10px;padding:14px 16px}
+.ib .il{font-size:10px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:8px}
+.ib .iv{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--txt)}
+.ib .id{font-size:11px;color:var(--txt2);margin-top:4px;line-height:1.5}
+/* ── Split slider ── */
+.split-ctrl{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surf2);border:1px solid rgba(247,184,79,.2);border-radius:10px;margin-bottom:1rem;flex-wrap:wrap}
+.split-ctrl label{font-family:var(--mono);font-size:12px;color:var(--amber);white-space:nowrap}
+.split-ctrl input[type=range]{flex:1;min-width:120px}
+.split-ctrl .sv{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--amber);min-width:60px}
+/* ── Steps ── */
+.steps{list-style:none;counter-reset:s}
+.steps li{counter-increment:s;display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--bdr);font-size:13px;color:var(--txt2);line-height:1.5}
+.steps li:last-child{border-bottom:none}
+.steps li::before{content:counter(s);flex-shrink:0;width:22px;height:22px;background:var(--blue-d);color:var(--acc);border:1px solid rgba(79,142,247,.2);border-radius:50%;font-family:var(--mono);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.steps li strong{color:var(--txt);font-weight:500}
+/* ── Legend ── */
+.legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--bdr)}
+.li{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt2)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.glow-div{height:1px;background:linear-gradient(90deg,transparent,var(--acc),transparent);opacity:.2;margin:1.5rem 0}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.ani{animation:fadeUp .35s ease both}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="tag">IEEE · Approximate Computing</div>
+    <h1>MSB-Triggered <span>Approximate Adder</span></h1>
+    <p class="subtitle">Fixed split-point architecture · ETA-1 carry variant · 8-bit operands<br>
+    Accurate part: normal addition &nbsp;|&nbsp; Inaccurate part: XOR until both=1, then force all = 1</p>
+  </header>
+
+  <!-- SPLIT CONTROL -->
+  <div class="split-ctrl">
+    <label>SPLIT POINT (inaccurate section width)</label>
+    <input type="range" id="sl-split" min="1" max="7" value="4" oninput="onSplitChange(this.value)">
+    <span class="sv" id="lbl-split">bits&nbsp;3..0&nbsp;(4&nbsp;bits)</span>
+    <span style="font-size:11px;color:var(--txt2)">Accurate: bits 7..4 &nbsp;·&nbsp; Inaccurate: bits 3..0</span>
+  </div>
+
+  <!-- INPUTS -->
+  <div class="card">
+    <div class="ctitle">Input operands</div>
+    <div class="igrid">
+      <div class="iblk">
+        <label>OPERAND A &nbsp;[0–255]</label>
+        <input type="number" id="inp-a" min="0" max="255" value="154" oninput="clamp(this);compute()">
+        <input type="range"  id="sl-a"  min="0" max="255" value="154" oninput="syncSl('a')">
+        <div class="bindsp" id="bin-a">Binary: <span>10011010</span></div>
+      </div>
+      <div class="iblk">
+        <label>OPERAND B &nbsp;[0–255]</label>
+        <input type="number" id="inp-b" min="0" max="255" value="19" oninput="clamp(this);compute()">
+        <input type="range"  id="sl-b"  min="0" max="255" value="19" oninput="syncSl('b')">
+        <div class="bindsp" id="bin-b">Binary: <span>00010011</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BIT VISUALIZATION -->
+  <div class="card">
+    <div class="ctitle">Bit-level operation</div>
+    <div id="bit-sec"></div>
+    <div class="carry-info" id="carry-info"></div>
+    <div class="legend">
+      <div class="li"><span class="ld" style="background:rgba(79,142,247,.5);border:1px solid rgba(79,142,247,.4)"></span>Accurate — normal addition</div>
+      <div class="li"><span class="ld" style="background:rgba(247,184,79,.18);border:1px solid rgba(247,184,79,.5)"></span>Inaccurate — XOR or forced = 1</div>
+      <div class="li"><span class="ld" style="background:rgba(79,214,138,.4);border:1px solid rgba(79,214,138,.4)"></span>Result (accurate part)</div>
+      <div class="li"><span class="ld" style="background:rgba(124,92,252,.4);border:1px solid rgba(124,92,252,.4)"></span>Result (inaccurate part)</div>
+      <div class="li"><span class="ld" style="background:rgba(79,214,138,.4);border:1px solid rgba(79,214,138,.4)"></span>Exact result</div>
+    </div>
+  </div>
+
+  <!-- EQUATION + RESULT CARDS -->
+  <div class="card ani">
+    <div class="ctitle">Computation results</div>
+    <div class="eq" id="eq"></div>
+    <div class="rgrid" id="rgrid"></div>
+    <div class="ebar-wrap">
+      <div class="ebar-hdr"><span>Relative error magnitude</span><span id="epct">0%</span></div>
+      <div class="ebar-track"><div class="ebar-fill" id="ebar" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div class="glow-div"></div>
+
+  <!-- INFERENCE / ANALYSIS -->
+  <div class="card">
+    <div class="ctitle">Error analysis &amp; inference metrics</div>
+    <div class="inf-grid" id="inf-grid"></div>
+  </div>
+
+  <!-- ALGO TRACE -->
+  <div class="card">
+    <div class="ctitle">Algorithm trace</div>
+    <ul class="steps" id="steps"></ul>
+  </div>
+</div>
+
+<script>
+let SPLIT = 4;
+
+// ── Adder ─────────────────────────────────────────────────────────────────
+function adder(a, b, split) {
+  let inaccR = 0, trigBit = -1;
+  for (let bit = split-1; bit >= 0; bit--) {
+    const ab=(a>>bit)&1, bb=(b>>bit)&1;
+    if (trigBit >= 0) { inaccR |= (1<<bit); }
+    else if (ab===1 && bb===1) {
+      trigBit = bit;
+      inaccR |= (1<<(bit+1))-1;
+      break;
+    } else {
+      inaccR |= (ab^bb)<<bit;
+    }
+  }
+  const accBits = 8 - split;
+  const accMask = (1<<accBits)-1;
+  const aUp = (a>>split)&accMask, bUp = (b>>split)&accMask;
+  const accSum = aUp + bUp;
+  const accR = accSum & accMask;
+  const ovf  = accSum > accMask;
+  return { result:((accR<<split)|inaccR)&0xFF, trigBit, inaccR, accR, ovf };
+}
+
+function toBits(n) { return Array.from({length:8},(_,i)=>(n>>(7-i))&1); }
+function clamp(el) { let v=parseInt(el.value); if(isNaN(v)||v<0)el.value=0; if(v>255)el.value=255; }
+function syncSl(op) { document.getElementById('inp-'+op).value=document.getElementById('sl-'+op).value; compute(); }
+
+function onSplitChange(v) {
+  SPLIT = parseInt(v);
+  const lbl = document.getElementById('lbl-split');
+  lbl.textContent = `bits ${SPLIT-1}..0 (${SPLIT} bits)`;
+  const hint = document.querySelector('.split-ctrl span:last-child');
+  hint.textContent = `Accurate: bits 7..${SPLIT} · Inaccurate: bits ${SPLIT-1}..0`;
+  compute();
+}
+
+// ── Main ─────────────────────────────────────────────────────────────────
+function compute() {
+  const a = Math.max(0,Math.min(255, parseInt(document.getElementById('inp-a').value)||0));
+  const b = Math.max(0,Math.min(255, parseInt(document.getElementById('inp-b').value)||0));
+  document.getElementById('sl-a').value = a;
+  document.getElementById('sl-b').value = b;
+  document.getElementById('bin-a').innerHTML = `Binary: <span>${a.toString(2).padStart(8,'0')}</span>`;
+  document.getElementById('bin-b').innerHTML = `Binary: <span>${b.toString(2).padStart(8,'0')}</span>`;
+
+  const {result:approx, trigBit, inaccR, accR, ovf} = adder(a, b, SPLIT);
+  const exact   = (a+b)&0xFF;
+  const absErr  = Math.abs(approx-exact);
+  const relErr  = exact>0 ? absErr/exact : (absErr>0?1:0);
+  const inaccBits = trigBit >= 0 ? trigBit+1 : 0;
+
+  renderBits(a, b, approx, exact, trigBit);
+  renderResults(a, b, approx, exact, absErr, ovf, inaccBits);
+  renderInference(a, b, approx, exact, absErr, relErr, trigBit, inaccBits);
+  renderSteps(a, b, approx, exact, trigBit);
+
+  const barPct = Math.min(100, relErr*100);
+  const bar = document.getElementById('ebar');
+  bar.style.width = barPct+'%';
+  bar.style.background = absErr===0?'#4fd68a':absErr<5?'#4f8ef7':absErr<30?'#f7b84f':'#f75b5b';
+  document.getElementById('epct').textContent = (relErr*100).toFixed(2)+'%';
+
+  document.getElementById('eq').innerHTML = `
+    <span class="eq-n">${a}</span><span class="eq-op">+</span><span class="eq-n">${b}</span>
+    <span class="eq-eq">=</span>
+    <span class="eq-ap" title="Approximate result">${approx} <span style="font-size:11px;opacity:.7">(approx)</span></span>
+    <span class="eq-op" style="margin:0 4px">|</span>
+    <span class="eq-ex" title="Exact 8-bit result">${exact} <span style="font-size:11px;opacity:.7">(exact)</span></span>
+    ${ovf?'<span class="ovf">overflow in accurate section</span>':''}
+  `;
+}
+
+// ── Bit rendering ────────────────────────────────────────────────────────
+function renderBits(a, b, approx, exact, trigBit) {
+  const bA=toBits(a), bB=toBits(b), bAp=toBits(approx), bEx=toBits(exact);
+  const sec = document.getElementById('bit-sec');
+  sec.innerHTML = '';
+  const split = SPLIT;
+
+  function mkRow(label, bits, getCls) {
+    const row = document.createElement('div'); row.className='op-row';
+    const lbl = document.createElement('div'); lbl.className='op-lbl'; lbl.textContent=label; row.appendChild(lbl);
+    const wrap = document.createElement('div'); wrap.className='bits';
+    bits.forEach((bit,i) => {
+      const bitPos = 7-i;
+      if (bitPos === split-1 && i>0) {
+        // insert visual divider
+        const dv=document.createElement('div'); dv.className='bc divider'; wrap.appendChild(dv);
+      }
+      const d=document.createElement('div');
+      d.className='bc '+getCls(bitPos, bit);
+      if (trigBit>=0 && bitPos===trigBit && label!=='=' ) d.classList.add('trig');
+      d.textContent=bit;
+      wrap.appendChild(d);
+    });
+    row.appendChild(wrap);
+    return row;
+  }
+
+  // section labels row
+  const slRow = document.createElement('div'); slRow.className='op-row';
+  const slLbl = document.createElement('div'); slLbl.className='op-lbl'; slRow.appendChild(slLbl);
+  const slWrap= document.createElement('div'); slWrap.className='bits';
+  for(let i=0;i<8;i++){
+    const bitPos=7-i;
+    if(bitPos===split-1 && i>0){
+      const dv=document.createElement('div');dv.className='bc divider-pos';slWrap.appendChild(dv);
+    }
+    const d=document.createElement('div'); d.className='bc pos-lbl'; d.textContent=bitPos; slWrap.appendChild(d);
+  }
+  slRow.appendChild(slWrap);
+  sec.appendChild(slRow);
+
+  // section header labels
+  const shRow=document.createElement('div');shRow.className='op-row';
+  const shLbl=document.createElement('div');shLbl.className='op-lbl';shRow.appendChild(shLbl);
+  const shWrap=document.createElement('div');shWrap.className='bits';
+  for(let i=0;i<8;i++){
+    const bitPos=7-i;
+    if(bitPos===split-1&&i>0){const dv=document.createElement('div');dv.className='bc divider-pos';shWrap.appendChild(dv);}
+    const d=document.createElement('div');d.className='bc split-lbl';
+    d.style.width='34px';
+    if(bitPos===Math.floor((7+split)/2)) d.textContent='ACCURATE';
+    else if(bitPos===Math.floor((split-1)/2)) d.textContent='INACCURATE';
+    else d.textContent='';
+    shWrap.appendChild(d);
+  }
+  shRow.appendChild(shWrap);
+  sec.appendChild(shRow);
+
+  // region colour bar
+  const rb=document.createElement('div');rb.className='region-bar';
+  for(let i=0;i<8;i++){
+    const bitPos=7-i;
+    if(bitPos===split-1&&i>0){const dv=document.createElement('div');dv.className='rb div-rb';rb.appendChild(dv);}
+    const r=document.createElement('div');r.className='rb '+(bitPos<split?'inacc':'acc');rb.appendChild(r);
+  }
+  sec.appendChild(rb);
+
+  sec.appendChild(mkRow('A', bA, (bitPos)=> bitPos<split ? 'inacc-in' : 'acc'));
+  sec.appendChild(mkRow('B', bB, (bitPos)=> bitPos<split ? 'inacc-in' : 'acc'));
+
+  const dv=document.createElement('div');dv.className='divider-row';
+  dv.innerHTML='<div class="dline"></div><div class="dlbl">── result ──</div><div class="dline"></div>';
+  sec.appendChild(dv);
+
+  sec.appendChild(mkRow('≈', bAp, (bitPos,bit)=>{
+    if(bitPos >= split) return 'res-acc';
+    return (trigBit>=0 && bitPos<=trigBit) ? 'res-forced' : 'res-acc';
+  }));
+  sec.appendChild(mkRow('=', bEx, ()=>'exact'));
+
+  document.getElementById('carry-info').innerHTML = `
+    <span class="cbadge">C<sub>out</sub> inacc = 0</span>
+    <span>Carry-out of inaccurate section is forced to zero (ETA-1).
+    Overflow in accurate section:
+    <strong style="color:${(a>>split)+(b>>split) > (1<<(8-split))-1 ? 'var(--red)':'var(--green)'}">${(a>>split)+(b>>split) > (1<<(8-split))-1 ? 'YES':'NO'}</strong></span>
+  `;
+}
+
+// ── Result cards ──────────────────────────────────────────────────────────
+function renderResults(a,b,approx,exact,absErr,ovf,inaccBits) {
+  const ec = absErr===0?'c-grn':absErr<5?'c-blu':absErr<30?'c-amb':'c-red';
+  document.getElementById('rgrid').innerHTML = `
+    <div class="rc"><div class="rl">Approx. sum</div><div class="rv c-amb">${approx}</div><div class="rs">${approx.toString(2).padStart(8,'0')}</div></div>
+    <div class="rc"><div class="rl">Exact sum</div><div class="rv c-pur">${exact}</div><div class="rs">${exact.toString(2).padStart(8,'0')}</div></div>
+    <div class="rc"><div class="rl">Abs. error</div><div class="rv ${ec}">${absErr}</div><div class="rs">ED = ${absErr}</div></div>
+    <div class="rc"><div class="rl">Inacc. bits</div><div class="rv c-blu">${inaccBits}</div><div class="rs">of ${SPLIT} inacc. bits</div></div>
+  `;
+}
+
+// ── Inference ─────────────────────────────────────────────────────────────
+function renderInference(a,b,approx,exact,absErr,relErr,trigBit,inaccBits) {
+  const psnr = absErr===0 ? '∞ (exact)' : (10*Math.log10(255*255/(absErr*absErr))).toFixed(2)+' dB';
+  const nmed = (absErr/255).toFixed(6);
+  const hamA = a.toString(2).split('').filter(x=>x==='1').length;
+  const hamB = b.toString(2).split('').filter(x=>x==='1').length;
+  const aLow = a&((1<<SPLIT)-1), bLow = b&((1<<SPLIT)-1);
+  const commonOnes = (aLow&bLow).toString(2).split('').filter(x=>x==='1').length;
+  document.getElementById('inf-grid').innerHTML = `
+    <div class="ib"><div class="il">PSNR</div><div class="iv">${psnr}</div><div class="id">Peak signal-to-noise ratio. &gt;30 dB is visually acceptable for image apps.</div></div>
+    <div class="ib"><div class="il">NMED</div><div class="iv">${nmed}</div><div class="id">Normalised mean error distance (error/255). Target &lt;0.02 for image processing.</div></div>
+    <div class="ib"><div class="il">Rel. error</div><div class="iv">${(relErr*100).toFixed(3)}%</div><div class="id">|approx − exact| / exact × 100. Zero when no trigger found.</div></div>
+    <div class="ib"><div class="il">Trigger bit</div><div class="iv">${trigBit>=0?'bit '+trigBit:'none'}</div><div class="id">${trigBit>=0?`First A=B=1 in inaccurate section at bit ${trigBit}. Bits ${trigBit}..0 forced to 1.`:'No both=1 found. Inaccurate section fully exact (XOR only).'}</div></div>
+    <div class="ib"><div class="il">Bit analysis</div><div class="iv">${commonOnes}</div><div class="id">Shared 1-bits in inaccurate section (A AND B lower). Hamming A=${hamA}, B=${hamB}.</div></div>
+    <div class="ib"><div class="il">Section values</div><div class="iv" style="font-size:13px">A=${a>>SPLIT}|${aLow}</div><div class="id">Upper (accurate) | Lower (inaccurate). B=${b>>SPLIT}|${bLow}.</div></div>
+  `;
+}
+
+// ── Algo steps ────────────────────────────────────────────────────────────
+function renderSteps(a,b,approx,exact,trigBit) {
+  const ul = document.getElementById('steps');
+  const bA=toBits(a), bB=toBits(b);
+  const steps = [];
+  const split = SPLIT;
+
+  steps.push(`<strong>Split:</strong> 8-bit word divided at bit ${split}. Accurate section = bits 7..${split} (${8-split} bits). Inaccurate section = bits ${split-1}..0 (${split} bits).`);
+  steps.push(`<strong>Accurate part:</strong> A_upper = ${a>>split} (${(a>>split).toString(2).padStart(8-split,'0')}), B_upper = ${b>>split} (${(b>>split).toString(2).padStart(8-split,'0')}). Normal addition → ${((a>>split)+(b>>split))&((1<<(8-split))-1)}.`);
+  steps.push(`<strong>Inaccurate part — scan MSB→LSB</strong> of bits ${split-1}..0:`);
+
+  let triggered = false;
+  for(let bit=split-1; bit>=0; bit--) {
+    const ab=(a>>bit)&1, bb=(b>>bit)&1;
+    if(!triggered) {
+      if(ab===1&&bb===1) {
+        triggered=true;
+        steps.push(`Bit ${bit}: A=${ab}, B=${bb} → <strong>BOTH = 1 — TRIGGER!</strong> Force bits ${bit}..0 = 1. Stop.`);
+        break;
+      } else {
+        steps.push(`Bit ${bit}: A=${ab}, B=${bb} → XOR = ${ab^bb} (no trigger).`);
+      }
+    }
+  }
+  if(!triggered) steps.push(`<strong>No trigger found.</strong> All inaccurate bits computed by XOR. Result is fully exact.`);
+  steps.push(`<strong>Final:</strong> Approx = ${approx} (${approx.toString(2).padStart(8,'0')}), Exact = ${exact} (${exact.toString(2).padStart(8,'0')}), Error = ${Math.abs(approx-exact)}.`);
+
+  ul.innerHTML = steps.map(s=>`<li>${s}</li>`).join('');
+}
+
+compute();
+</script>
+</body>
+</html>

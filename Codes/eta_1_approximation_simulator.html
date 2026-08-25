@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETA-1 Hybrid Approximate Adder Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; }
+        .bit-box { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem; cursor: pointer; border-radius: 6px; transition: all 0.2s; user-select: none; }
+        .bit-0 { background-color: #e5e7eb; color: #374151; border: 2px solid #d1d5db; }
+        .bit-1 { background-color: #3b82f6; color: white; border: 2px solid #2563eb; }
+        .exact-zone { border: 2px dashed #10b981; border-radius: 8px; padding: 10px; background-color: rgba(16, 185, 129, 0.05); }
+        .approx-zone { border: 2px dashed #f59e0b; border-radius: 8px; padding: 10px; background-color: rgba(245, 158, 11, 0.05); }
+    </style>
+</head>
+<body class="p-6">
+
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2 text-center">8-Bit Hybrid Approximate Adder (ETA-1)</h1>
+        <p class="text-center text-gray-600 mb-8">Click the bits below to toggle them between 0 and 1. Observe how the ETA-1 logic forces bits in the LSB segment.</p>
+
+        <!-- Inputs Section -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">Operand A (8-bit)</h2>
+            <div class="flex gap-4 justify-center">
+                <!-- MSB A -->
+                <div class="exact-zone flex gap-2" id="a-msb">
+                    <div class="bit-box bit-0" onclick="toggleBit('a', 7)">0</div>
+                    <div class="bit-box bit-0" onclick="toggleBit('a', 6)">0</div>
+                    <div class="bit-box bit-0" onclick="toggleBit('a', 5)">0</div>
+                    <div class="bit-box bit-0" onclick="toggleBit('a', 4)">0</div>
+                </div>
+                <!-- LSB A -->
+                <div class="approx-zone flex gap-2" id="a-lsb">
+                    <div class="bit-box bit-0" onclick="toggleBit('a', 3)">0</div>
+                    <div class="bit-box bit-0" onclick="toggleBit('a', 2)">0</div>
+                    <div class="bit-box bit-0" onclick="toggleBit('a', 1)">0</div>
+                    <div class="bit-box bit-0" onclick="toggleBit('a', 0)">0</div>
+                </div>
+            </div>
+            <div class="text-center mt-2 text-sm text-gray-500 font-mono">Value: <span id="val-a" class="font-bold">0</span></div>
+        </div>
+
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">Operand B (8-bit)</h2>
+            <div class="flex gap-4 justify-center">
+                <!-- MSB B -->
+                <div class="exact-zone flex gap-2" id="b-msb">
+                    <div class="bit-box bit-0" onclick="toggleBit('b', 7)">0</div>
+                    <div class="bit-box bit-0" onclick="toggleBit('b', 6)">0</div>
+                    <div class="bit-box bit-0" onclick="toggleBit('b', 5)">0</div>
+                    <div class="bit-box bit-0" onclick="toggleBit('b', 4)">0</div>
+                </div>
+                <!-- LSB B -->
+                <div class="approx-zone flex gap-2" id="b-lsb">
+                    <div class="bit-box bit-0" onclick="toggleBit('b', 3)">0</div>
+                    <div class="bit-box bit-0" onclick="toggleBit('b', 2)">0</div>
+                    <div class="bit-box bit-0" onclick="toggleBit('b', 1)">0</div>
+                    <div class="bit-box bit-0" onclick="toggleBit('b', 0)">0</div>
+                </div>
+            </div>
+            <div class="text-center mt-2 text-sm text-gray-500 font-mono">Value: <span id="val-b" class="font-bold">0</span></div>
+        </div>
+
+        <div class="flex justify-center gap-12 mb-8 text-sm font-semibold">
+            <div class="text-emerald-600">↑ Accurate Segment (Exact RCA)</div>
+            <div class="text-amber-600">↑ Inaccurate Segment (ETA-1 Logic)</div>
+        </div>
+
+        <!-- Logic Execution Panel -->
+        <div class="bg-gray-50 rounded-lg p-6 mb-8 border border-gray-200">
+            <h3 class="text-lg font-bold text-gray-800 mb-3">ETA-1 Logic Execution (Lower 4 Bits)</h3>
+            <ul id="logic-log" class="font-mono text-sm space-y-2 text-gray-700">
+                <!-- Populated by JS -->
+            </ul>
+        </div>
+
+        <!-- Results Section -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white border-2 border-emerald-500 rounded-lg p-4 text-center shadow-sm">
+                <div class="text-sm text-gray-500 font-semibold uppercase">Exact Sum</div>
+                <div class="text-3xl font-bold text-emerald-600 my-2" id="res-exact">0</div>
+                <div class="font-mono text-xs text-gray-400" id="res-exact-bin">0000 0000</div>
+            </div>
+
+            <div class="bg-white border-2 border-amber-500 rounded-lg p-4 text-center shadow-sm">
+                <div class="text-sm text-gray-500 font-semibold uppercase">Hybrid ETA-1 Sum</div>
+                <div class="text-3xl font-bold text-amber-600 my-2" id="res-approx">0</div>
+                <div class="font-mono text-xs text-gray-400" id="res-approx-bin">0000 0000</div>
+            </div>
+
+            <div class="bg-white border-2 border-red-500 rounded-lg p-4 text-center shadow-sm">
+                <div class="text-sm text-gray-500 font-semibold uppercase">Error Distance (ED)</div>
+                <div class="text-3xl font-bold text-red-600 my-2" id="res-error">0</div>
+                <div class="text-xs text-gray-500 font-semibold" id="res-status">Perfect Match</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let state = {
+            a: [0,0,0,0,0,0,0,0], // Index 0 is LSB, Index 7 is MSB
+            b: [0,0,0,0,0,0,0,0]
+        };
+
+        function toggleBit(operand, bitIndex) {
+            state[operand][bitIndex] = state[operand][bitIndex] === 0 ? 1 : 0;
+            updateUI();
+        }
+
+        function getDecimal(arr) {
+            let val = 0;
+            for(let i=0; i<8; i++) {
+                if(arr[i] === 1) val += Math.pow(2, i);
+            }
+            return val;
+        }
+
+        function toBinString(val) {
+            let bin = val.toString(2).padStart(8, '0');
+            return bin.substring(0,4) + ' ' + bin.substring(4,8);
+        }
+
+        function calculateETA1() {
+            let a_val = getDecimal(state.a);
+            let b_val = getDecimal(state.b);
+            
+            // Exact Sum
+            let exactSum = a_val + b_val;
+
+            // Approximate Sum (Hybrid ETA-1)
+            let sum_msb = (a_val >> 4) + (b_val >> 4);
+            
+            let s_lsb = 0;
+            let force_one = false;
+            let logHTML = '';
+
+            for (let i = 3; i >= 0; i--) {
+                let bit_a = state.a[i];
+                let bit_b = state.b[i];
+                let current_sum_bit = 0;
+
+                if (force_one) {
+                    s_lsb |= (1 << i);
+                    current_sum_bit = 1;
+                    logHTML += `<li><span class="text-amber-500 font-bold">Bit ${i}:</span> force_one is ON. Automatically output 1.</li>`;
+                } else if (bit_a === 1 && bit_b === 1) {
+                    force_one = true;
+                    s_lsb |= (1 << i);
+                    current_sum_bit = 1;
+                    logHTML += `<li><span class="text-amber-500 font-bold">Bit ${i}:</span> Inputs are 1 and 1. <span class="bg-amber-100 text-amber-800 px-1 rounded">Triggered force_one!</span> Output 1.</li>`;
+                } else {
+                    current_sum_bit = bit_a ^ bit_b;
+                    s_lsb |= (current_sum_bit << i);
+                    logHTML += `<li><span class="text-amber-500 font-bold">Bit ${i}:</span> Inputs are ${bit_a} and ${bit_b}. XOR output is ${current_sum_bit}.</li>`;
+                }
+            }
+
+            let approxSum = (sum_msb << 4) | s_lsb;
+            let error = Math.abs(exactSum - approxSum);
+
+            return { exactSum, approxSum, error, logHTML };
+        }
+
+        function updateUI() {
+            // Update Bit Boxes styling
+            ['a', 'b'].forEach(op => {
+                for(let i=0; i<8; i++) {
+                    let box = document.querySelector(`#${op}-${i>3?'msb':'lsb'} div:nth-child(${i>3 ? 8-i : 4-i})`);
+                    if(state[op][i] === 1) {
+                        box.className = "bit-box bit-1";
+                        box.textContent = "1";
+                    } else {
+                        box.className = "bit-box bit-0";
+                        box.textContent = "0";
+                    }
+                }
+                document.getElementById(`val-${op}`).textContent = getDecimal(state[op]);
+            });
+
+            // Calculate and Update Results
+            let res = calculateETA1();
+            
+            document.getElementById('logic-log').innerHTML = res.logHTML;
+            
+            document.getElementById('res-exact').textContent = res.exactSum;
+            document.getElementById('res-exact-bin').textContent = toBinString(res.exactSum);
+            
+            document.getElementById('res-approx').textContent = res.approxSum;
+            document.getElementById('res-approx-bin').textContent = toBinString(res.approxSum);
+            
+            document.getElementById('res-error').textContent = res.error;
+
+            let statusEl = document.getElementById('res-status');
+            if(res.error === 0) {
+                statusEl.textContent = "Perfect Match";
+                statusEl.className = "text-xs text-emerald-600 font-bold";
+            } else {
+                statusEl.textContent = "Approximation Error Generated";
+                statusEl.className = "text-xs text-red-600 font-bold";
+            }
+        }
+
+        // Initialize
+        updateUI();
+    </script>
+</body>
+</html>

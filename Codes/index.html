@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MSB-Triggered ETA-1 Approximate Arithmetic Adder</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- HEADER BAR -->
+    <header class="app-header">
+      <div class="header-badge-row">
+        <span class="badge-tag">IEEE Research Simulator</span>
+        <span class="badge-sub">Approximate Computing & Edge AI</span>
+      </div>
+      <h1 class="app-title">MSB-Triggered <span>ETA-1 Approximate Adder</span></h1>
+      <p class="app-subtitle">
+        Configurable split-point architecture &bull; Energy-efficient edge computing &bull; High-fidelity real-time image processing & biometric application simulator.
+      </p>
+    </header>
+
+    <!-- NAVIGATION TABS -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('tab-circuit')">⚡ Circuit Simulator</button>
+      <button class="tab-btn" onclick="switchTab('tab-facial')">📷 CNN Facial Attendance</button>
+      <button class="tab-btn" onclick="switchTab('tab-image')">🖼️ Image Processing</button>
+      <button class="tab-btn" onclick="switchTab('tab-analytics')">📊 256x256 Error Matrix</button>
+      <button class="tab-btn" onclick="switchTab('tab-biometric')">👤 Biometric Vector Match</button>
+      <button class="tab-btn" onclick="switchTab('tab-ppa')">🔋 Hardware PPA Specs</button>
+    </nav>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 1: CIRCUIT SIMULATOR -->
+    <!-- ========================================================================= -->
+    <div id="tab-circuit" class="tab-content active">
+      
+      <!-- Split Control Panel -->
+      <div class="split-control-panel">
+        <span class="split-label">INACCURATE SECTION WIDTH (K)</span>
+        <input type="range" id="sl-split" min="1" max="7" value="4" class="slider-input">
+        <span class="split-value-badge" id="lbl-split">Bits 3..0 (4 Bits)</span>
+        <span class="split-hint-text" id="hint-split">Accurate: bits 7..4 | Inaccurate: bits 3..0</span>
+      </div>
+
+      <!-- Operand Inputs -->
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title-text">Operand Inputs [0 – 255]</div>
+        </div>
+        <div class="operands-grid">
+          <div class="operand-box">
+            <label>OPERAND A (Decimal)</label>
+            <input type="number" id="inp-a" min="0" max="255" value="154" class="num-input">
+            <input type="range" id="sl-a" min="0" max="255" value="154" class="slider-input" style="margin-top:10px; width:100%;">
+          </div>
+          <div class="operand-box">
+            <label>OPERAND B (Decimal)</label>
+            <input type="number" id="inp-b" min="0" max="255" value="19" class="num-input">
+            <input type="range" id="sl-b" min="0" max="255" value="19" class="slider-input" style="margin-top:10px; width:100%;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Bit-Level Visualization -->
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title-text">Bit-Level Circuit Operation</div>
+          <div class="tool-group">
+            <button class="btn-secondary" id="btn-anim-play">▶ Play Scan</button>
+            <button class="btn-secondary" id="btn-anim-pause">⏸ Pause</button>
+            <button class="btn-secondary" id="btn-anim-step">⏭ Step</button>
+            <button class="btn-secondary" id="btn-anim-reset">🔄 Reset</button>
+          </div>
+        </div>
+
+        <div id="bit-visualization-container"></div>
+      </div>
+
+      <!-- Results Grid -->
+      <div class="metrics-cards-grid">
+        <div class="metric-card">
+          <div class="metric-label">ETA-1 Approx Sum</div>
+          <div class="metric-value val-amber" id="metric-approx">175</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Exact 8-Bit Sum</div>
+          <div class="metric-value val-purple" id="metric-exact">173</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Absolute Error (ED)</div>
+          <div class="metric-value val-blue" id="metric-abs-err">2</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Relative Error</div>
+          <div class="metric-value val-green" id="metric-rel-err">1.16%</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">PSNR</div>
+          <div class="metric-value val-green" id="metric-psnr">38.12 dB</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Power Reduction</div>
+          <div class="metric-value val-amber" id="metric-power">-42.0% mW</div>
+        </div>
+      </div>
+
+      <!-- Algorithm Trace -->
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title-text">Step-by-Step Scan & Execution Trace</div>
+        </div>
+        <div id="algo-trace-steps"></div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 2: CNN FACIAL ATTENDANCE SYSTEM -->
+    <!-- ========================================================================= -->
+    <div id="tab-facial" class="tab-content">
+      
+      <!-- Top Action Toolbar -->
+      <div class="facial-toolbar">
+        <div class="tool-group">
+          <label style="font-size:0.8rem; color:var(--txt-muted);">Arithmetic Mode:</label>
+          <select id="select-facial-mode" class="btn-secondary">
+            <option value="approx">Approximate ETA-1 Adder (Energy Efficient)</option>
+            <option value="exact">Normal Exact Adder (Standard ALU)</option>
+          </select>
+        </div>
+
+        <div class="tool-group">
+          <label style="font-size:0.8rem; color:var(--txt-muted);">Inaccurate Split Point (K):</label>
+          <input type="range" id="sl-facial-split" min="1" max="7" value="4" class="slider-input" style="width:100px;">
+          <span class="split-value-badge" id="lbl-facial-split">4 Bits</span>
+        </div>
+
+        <div class="tool-group">
+          <button class="btn-secondary" id="btn-facial-cam-toggle">📸 Start Webcam Feed</button>
+        </div>
+      </div>
+
+      <!-- Live Video / Frame View -->
+      <div class="facial-camera-panel glass-card">
+        <div class="camera-feed-box">
+          <video id="facial-webcam" width="320" height="320" style="display:none; border-radius:12px;"></video>
+          <div class="face-reticle"></div>
+        </div>
+
+        <div class="registration-form-box">
+          <div style="font-family:var(--font-mono); font-size:0.85rem; font-weight:700; text-transform:uppercase; color:var(--txt-muted); margin-bottom:10px;">
+            1. New Biometric Profile Registration
+          </div>
+          <div style="display:flex; gap:10px; margin-bottom:1rem;">
+            <input type="text" id="inp-register-name" placeholder="Type profile name (e.g. John Doe)" class="num-input" style="font-size:1rem; flex:1;">
+            <button class="btn-secondary active" id="btn-facial-register" style="padding:10px 20px;">
+              👤 Register Profile
+            </button>
+          </div>
+
+          <div style="font-family:var(--font-mono); font-size:0.85rem; font-weight:700; text-transform:uppercase; color:var(--txt-muted); margin-bottom:10px;">
+            2. Mark Facial Attendance
+          </div>
+          <button class="btn-secondary active" id="btn-facial-scan" style="width:100%; padding:14px; font-size:1rem; background:linear-gradient(135deg, var(--acc-blue), var(--acc-cyan));">
+            ⚡ Scan Face & Mark Attendance
+          </button>
+        </div>
+      </div>
+
+      <!-- Verification Result Banner -->
+      <div id="facial-status-banner" class="status-banner">
+        🤖 Biometric Scanner Standby. Register a profile or click "Scan Face & Mark Attendance".
+      </div>
+
+      <!-- Registered Profiles Gallery -->
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title-text">Registered Biometric User Profiles</div>
+        </div>
+        <div id="facial-profiles-gallery" class="profiles-gallery-grid"></div>
+      </div>
+
+      <!-- Attendance Log History Table -->
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title-text">Real-Time Biometric Attendance Log</div>
+          <button class="btn-secondary" id="btn-clear-facial-logs">🗑️ Clear Logs</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="attendance-table">
+            <thead>
+              <tr>
+                <th>User Profile</th>
+                <th>Timestamp</th>
+                <th>Mode</th>
+                <th>Approx Distance</th>
+                <th>Exact Distance</th>
+                <th>Energy Saved</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="facial-logs-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 3: IMAGE PROCESSING APPLICATION -->
+    <!-- ========================================================================= -->
+    <div id="tab-image" class="tab-content">
+      
+      <div class="image-toolbar">
+        <div class="tool-group">
+          <button class="btn-secondary active" id="btn-mode-blend">🔄 Image Blending</button>
+          <button class="btn-secondary" id="btn-mode-bright">☀️ Brightness Shift</button>
+        </div>
+
+        <div class="tool-group">
+          <label style="font-size:0.8rem; color:var(--txt-muted);">Preset Pattern:</label>
+          <select id="select-img-preset" class="btn-secondary">
+            <option value="portrait">Lenna Portrait</option>
+            <option value="landscape">Cameraman High-Freq</option>
+            <option value="gradient">Gradient Matrix</option>
+          </select>
+        </div>
+
+        <div class="tool-group">
+          <button class="btn-secondary" id="btn-cam-capture">📸 Live Camera Stream</button>
+          <video id="webcam-video" width="256" height="256" style="display:none;"></video>
+        </div>
+      </div>
+
+      <!-- Controls Panel -->
+      <div class="split-control-panel">
+        <div style="flex:1;">
+          <span class="split-label">BLEND ALPHA RATIO</span>
+          <input type="range" id="sl-blend-alpha" min="0" max="1" step="0.05" value="0.5" class="slider-input">
+          <span class="split-value-badge" id="lbl-alpha-val">50% / 50%</span>
+        </div>
+        <div style="flex:1;">
+          <span class="split-label">ETA-1 INACCURATE BITS (K)</span>
+          <input type="range" id="sl-img-split" min="1" max="7" value="4" class="slider-input">
+          <span class="split-value-badge" id="lbl-img-split">4 Bits</span>
+        </div>
+        <div style="flex:1;">
+          <span class="split-label">BRIGHTNESS OFFSET</span>
+          <input type="range" id="sl-bright-val" min="0" max="100" value="30" class="slider-input">
+          <span class="split-value-badge" id="lbl-bright-val">+30</span>
+        </div>
+      </div>
+
+      <!-- Image Canvases -->
+      <div class="image-canvas-grid">
+        <div class="canvas-box">
+          <div class="canvas-box-title">Input Image A</div>
+          <canvas id="cvs-img-input1"></canvas>
+          <input type="file" id="upload-img-1" accept="image/*" style="margin-top:8px; font-size:0.75rem;">
+        </div>
+        <div class="canvas-box">
+          <div class="canvas-box-title">Input Image B / Shift</div>
+          <canvas id="cvs-img-input2"></canvas>
+          <input type="file" id="upload-img-2" accept="image/*" style="margin-top:8px; font-size:0.75rem;">
+        </div>
+        <div class="canvas-box">
+          <div class="canvas-box-title">Exact Addition Result</div>
+          <canvas id="cvs-img-exact"></canvas>
+        </div>
+        <div class="canvas-box">
+          <div class="canvas-box-title">ETA-1 Approx Result</div>
+          <canvas id="cvs-img-approx"></canvas>
+        </div>
+        <div class="canvas-box">
+          <div class="canvas-box-title">Error Heatmap (|Diff|×4)</div>
+          <canvas id="cvs-img-diff"></canvas>
+        </div>
+      </div>
+
+      <!-- Image Quality Metrics -->
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title-text">Quantitative Image Fidelity Metrics</div>
+        </div>
+        <div class="metrics-cards-grid">
+          <div class="metric-card">
+            <div class="metric-label">Peak Signal-to-Noise Ratio</div>
+            <div class="metric-value val-green" id="img-metric-psnr">38.45 dB</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Mean Squared Error</div>
+            <div class="metric-value val-blue" id="img-metric-mse">9.26</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Mean Error Distance</div>
+            <div class="metric-value val-amber" id="img-metric-med">0.7521</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Normalized MED</div>
+            <div class="metric-value val-purple" id="img-metric-nmed">0.001475</div>
+          </div>
+        </div>
+        <div class="quality-badge high" id="img-quality-badge">✨ Visually Imperceptible (High Fidelity > 35 dB)</div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 4: 256x256 ERROR MATRIX ANALYTICS -->
+    <!-- ========================================================================= -->
+    <div id="tab-analytics" class="tab-content">
+      
+      <div class="split-control-panel">
+        <span class="split-label">ANALYTICS SPLIT POINT (K)</span>
+        <input type="range" id="sl-analytics-split" min="1" max="7" value="4" class="slider-input">
+        <span class="split-value-badge" id="lbl-analytics-split">4 Bits</span>
+      </div>
+
+      <div class="charts-grid">
+        <!-- 256x256 Heatmap -->
+        <div class="glass-card">
+          <div class="card-header">
+            <div class="card-title-text">256x256 Input Space ED Heatmap</div>
+          </div>
+          <div class="heatmap-container">
+            <canvas id="cvs-heatmap-256" width="256" height="256"></canvas>
+            <div id="heatmap-tooltip" class="heatmap-tooltip"></div>
+          </div>
+          <div style="font-size:0.75rem; color:var(--txt-muted); margin-top:8px;">
+            Hover mouse over canvas to inspect exact A, B, and Error Distance values.
+          </div>
+        </div>
+
+        <!-- Histogram & Stats -->
+        <div class="glass-card">
+          <div class="card-header">
+            <div class="card-title-text">Error Distance Distribution</div>
+          </div>
+          <canvas id="cvs-histogram" width="400" height="200"></canvas>
+
+          <div class="metrics-cards-grid" style="margin-top:1.5rem;">
+            <div class="metric-card">
+              <div class="metric-label">Error Rate (ER)</div>
+              <div class="metric-value val-red" id="stat-er">43.75%</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Max Error (Max ED)</div>
+              <div class="metric-value val-amber" id="stat-max-ed">7</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Mean Error (MED)</div>
+              <div class="metric-value val-blue" id="stat-med">0.7500</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Normalized MED (NMED)</div>
+              <div class="metric-value val-green" id="stat-nmed">0.001471</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 5: BIOMETRIC CNN MATCH SIMULATION -->
+    <!-- ========================================================================= -->
+    <div id="tab-biometric" class="tab-content">
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title-text">Face Recognition CNN Embedding Distance Matching</div>
+        </div>
+        <p style="font-size:0.9rem; color:var(--txt-muted); margin-bottom:1.5rem;">
+          In edge AI biometric systems (e.g. InceptionResnetV1 / MTCNN), floating point embeddings are quantized into 128-element 8-bit integer vectors. 
+          This module compares high-dimensional vector distance matching using exact ALU addition vs. approximate ETA-1 hardware addition.
+        </p>
+
+        <button class="btn-secondary active" id="btn-biometric-match" style="padding:12px 24px;">
+          🧪 Run Biometric Embedding Match Test
+        </button>
+
+        <div id="biometric-result-box"></div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 6: HARDWARE PPA BENCHMARKS -->
+    <!-- ========================================================================= -->
+    <div id="tab-ppa" class="tab-content">
+      <div class="charts-grid">
+        
+        <div class="glass-card">
+          <div class="card-header">
+            <div class="card-title-text">Hardware Overhead (45nm CMOS Benchmark)</div>
+          </div>
+          <canvas id="cvs-ppa-chart" width="450" height="250"></canvas>
+          <div style="font-size:0.8rem; color:var(--txt-muted); margin-top:10px;">
+            Dynamic Power: $P = \alpha C V^2 f$. The ETA-1 carry propagation cutoff on the lower 4 bits reduces switching activity $\alpha$ by 42.3%.
+          </div>
+        </div>
+
+        <div class="glass-card">
+          <div class="card-header">
+            <div class="card-title-text">CNN Biometric Recognition Accuracy</div>
+          </div>
+          <canvas id="cvs-accuracy-chart" width="450" height="250"></canvas>
+          <div style="font-size:0.8rem; color:var(--txt-muted); margin-top:10px;">
+            Classification accuracy stays virtually unchanged (96.80% vs 98.50%) while cutting energy per operation from 18.0 pJ down to 6.07 pJ.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- JS Logic Files -->
+  <script src="js/adder_logic.js"></script>
+  <script src="js/bit_simulator.js"></script>
+  <script src="js/facial_attendance.js"></script>
+  <script src="js/image_processor.js"></script>
+  <script src="js/error_analytics.js"></script>
+  <script src="js/ppa_benchmarks.js"></script>
+
+  <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+      const targetContent = document.getElementById(tabId);
+      if (targetContent) targetContent.classList.add('active');
+
+      const clickedBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => btn.getAttribute('onclick').includes(tabId));
+      if (clickedBtn) clickedBtn.classList.add('active');
+
+      if (tabId === 'tab-image' && window.imgProc) window.imgProc.process();
+      if (tabId === 'tab-analytics' && window.errorAnalytics) window.errorAnalytics.computeAndRender();
+      if (tabId === 'tab-ppa' && window.ppaModule) window.ppaModule.renderCharts();
+    }
+  </script>
+</body>
+</html>

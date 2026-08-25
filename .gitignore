@@ -1,0 +1,19 @@
+# Ignore Scratch & Temporary files
+scratch/
+scratch_*.py
+*.tmp
+*.log
+
+# System & OS Files
+.DS_Store
+Thumbs.db
+
+# Python & Jupyter cache
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# IDE & Tool directories
+.vscode/
+.idea/
+.gemini/
