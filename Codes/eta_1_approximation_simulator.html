@@ -70,7 +70,7 @@
 
         <!-- Logic Execution Panel -->
         <div class="bg-gray-50 rounded-lg p-6 mb-8 border border-gray-200">
-            <h3 class="text-lg font-bold text-gray-800 mb-3">ETA-1 Logic Execution (Lower 4 Bits)</h3>
+            <h3 class="text-lg font-bold text-gray-800 mb-3">Disjoint ETA-1 Logic Execution</h3>
             <ul id="logic-log" class="font-mono text-sm space-y-2 text-gray-700">
                 <!-- Populated by JS -->
             </ul>
@@ -118,6 +118,8 @@
         }
 
         function toBinString(val) {
+            // Clamp to 8 bits to simulate standard 8-bit overflow limit
+            val = val & 255; 
             let bin = val.toString(2).padStart(8, '0');
             return bin.substring(0,4) + ' ' + bin.substring(4,8);
         }
@@ -126,34 +128,41 @@
             let a_val = getDecimal(state.a);
             let b_val = getDecimal(state.b);
             
-            // Exact Sum
-            let exactSum = a_val + b_val;
+            // Exact Sum (Clamped to 8 bits)
+            let exactSum = (a_val + b_val) & 255; 
 
-            // 1. Carry Prediction Interface (evaluates top-bit of LSB block)
-            let top_lsb_bit = 3;
-            let carry_pred = (state.a[top_lsb_bit] === 1 && state.b[top_lsb_bit] === 1) ? 1 : 0;
-
-            // 2. Precise MSB Block (Bits 7..4) with Carry-In from Prediction Interface
-            let sum_msb = (a_val >> 4) + (b_val >> 4) + carry_pred;
+            // 1. Precise MSB Block (Bits 7..4) - Disjoint addition (No carry-in)
+            // Python code runs: val_acc = (int(acc_a, 2) + int(acc_b, 2)) % 16
+            let sum_msb = ((a_val >> 4) + (b_val >> 4)) & 15; 
             
-            // 3. Approximate LSB Block (Bits 3..0) using bitwise OR logic
+            // 2. Approximate LSB Block (Bits 3..0) using ETA-1 Stuck-at-1 logic
             let s_lsb = 0;
             let logHTML = '';
+            let stuck_at_one = false;
 
+            // Python logic evaluates from MSB down to LSB (Bit 3 down to 0)
             for (let i = 3; i >= 0; i--) {
                 let bit_a = state.a[i];
                 let bit_b = state.b[i];
-                let current_sum_bit = bit_a | bit_b; // Bitwise OR logic
+                let current_sum_bit;
+
+                if (stuck_at_one) {
+                    current_sum_bit = 1;
+                    logHTML += `<li><span class="text-amber-500 font-bold">Bit ${i}:</span> Stuck-at-1 active. Output forced to 1.</li>`;
+                } else if (bit_a === 1 && bit_b === 1) {
+                    stuck_at_one = true;
+                    current_sum_bit = 1;
+                    logHTML += `<li><span class="text-amber-500 font-bold">Bit ${i}:</span> Inputs are 1 and 1. <span class="bg-amber-100 text-amber-800 px-1 rounded">Stuck-at-1 triggered!</span> Output is 1.</li>`;
+                } else {
+                    current_sum_bit = bit_a ^ bit_b; // Standard XOR
+                    logHTML += `<li><span class="text-amber-500 font-bold">Bit ${i}:</span> Inputs are ${bit_a} and ${bit_b}. XOR output is ${current_sum_bit}.</li>`;
+                }
                 s_lsb |= (current_sum_bit << i);
-                logHTML += `<li><span class="text-amber-500 font-bold">Bit ${i}:</span> Inputs are ${bit_a} and ${bit_b}. OR output is ${current_sum_bit}.</li>`;
             }
 
-            if (carry_pred === 1) {
-                logHTML += `<li><span class="text-emerald-600 font-bold">Carry Prediction Interface:</span> High-order LSB bit (Bit 3) A=1 and B=1 → Forwarded Predicted Carry = 1 to MSB Block.</li>`;
-            } else {
-                logHTML += `<li><span class="text-gray-500 font-bold">Carry Prediction Interface:</span> No carry predicted → Forwarded Carry = 0 to MSB Block.</li>`;
-            }
+            logHTML += `<li class="mt-2"><span class="text-emerald-600 font-bold">Block Interface:</span> Disjoint Architecture. Carry is severed; no carry is forwarded to the MSB block.</li>`;
 
+            // Combine MSB and LSB
             let approxSum = (sum_msb << 4) | s_lsb;
             let error = Math.abs(exactSum - approxSum);
 
