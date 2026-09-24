@@ -1,127 +1,172 @@
 /**
- * Core Logic Engine for MSB-Triggered ETA-1 Approximate Arithmetic Adder
+ * Core Logic Engine for 16-Bit Carry-Predictive ETA-1 Variant Approximate Adder
  * 
- * Logic Specification:
- * - Operands: 8-bit integers [0..255]
- * - Split Point K: 1 <= K <= 7 (default 4).
- *   - Accurate Section: Upper bits 7 .. K (width = 8 - K)
- *   - Inaccurate Section: Lower bits (K-1) .. 0 (width = K)
- * - Inaccurate Logic:
- *   - Scan LSB section from MSB (K-1) down to LSB (0).
- *   - If A_i == 1 and B_i == 1:
- *       Trigger activated! Bit i = 1, and all subsequent lower bits (i-1 .. 0) are forced to 1.
- *       Scanning stops.
- *   - Else (before trigger):
- *       Bit i = A_i ^ B_i (XOR).
- * - Carry-out of inaccurate section is forced to 0 (no carry prop to upper section).
- * - Upper section performs exact binary addition: (A >> K) + (B >> K).
+ * Architecture Specifications:
+ * 1. Stage 1 - Approximate LSB Block (Bits 0-7):
+ *    - Lower 8 bits bypass conventional Full Adder logic.
+ *    - Summation approximated using simplified low-power gates (Bitwise OR logic: S_i = A_i | B_i).
+ *    - Eliminates traditional LSB carry propagation chain.
+ * 
+ * 2. Stage 2 - Carry Prediction Interface:
+ *    - Evaluates highest-order bits of LSB operands (Bit 7 & Bit 6).
+ *    - Generates predicted carry C_pred = 1 if (A_7 AND B_7) or Majority logic is satisfied.
+ *    - Forwards C_pred directly into the Stage 3 MSB block, preventing standard ETA-1 MSB errors.
+ * 
+ * 3. Stage 3 - Precise MSB Block (Bits 8-15):
+ *    - Upper 8 bits processed via 100% accurate Ripple Carry addition.
+ *    - Accepts C_pred from Stage 2: S_MSB = A_MSB + B_MSB + C_pred.
  */
 
 class ETA1Adder {
   /**
-   * Computes the 8-bit ETA-1 approximate addition of a and b.
-   * @param {number} a - Operand A [0..255]
-   * @param {number} b - Operand B [0..255]
-   * @param {number} split - Inaccurate bit width K [1..7]
-   * @returns {Object} Result object containing full details
+   * Computes the 16-bit Carry-Predictive ETA-1 Approximate Addition of A and B.
+   * @param {number} a - Operand A [0..65535]
+   * @param {number} b - Operand B [0..65535]
+   * @param {number} lsbWidth - LSB block width (default 8)
+   * @returns {Object} Result details with 3-stage trace breakdown
    */
-  static compute(a, b, split = 4) {
-    a = Math.max(0, Math.min(255, Math.floor(a)));
-    b = Math.max(0, Math.min(255, Math.floor(b)));
-    split = Math.max(1, Math.min(7, Math.floor(split)));
+  static compute(a, b, lsbWidth = 8) {
+    a = Math.max(0, Math.min(65535, Math.floor(a)));
+    b = Math.max(0, Math.min(65535, Math.floor(b)));
+    lsbWidth = Math.max(1, Math.min(15, Math.floor(lsbWidth)));
 
-    const accBits = 8 - split;
-    const accMask = (1 << accBits) - 1;
-    const inaccMask = (1 << split) - 1;
+    const msbWidth = 16 - lsbWidth;
+    const lsbMask = (1 << lsbWidth) - 1;
+    const msbMask = (1 << msbWidth) - 1;
 
-    // Separate MSB and LSB
-    const aMSB = (a >> split) & accMask;
-    const bMSB = (b >> split) & accMask;
-    const aLSB = a & inaccMask;
-    const bLSB = b & inaccMask;
+    // Stage 1: Approximate LSB Block (Bits 0..7) using Bitwise OR Logic
+    const aLSB = a & lsbMask;
+    const bLSB = b & lsbMask;
+    const sLSB = aLSB | bLSB;
 
-    // MSB Exact Addition
-    const sumMSB = aMSB + bMSB;
-    const resMSB = sumMSB & accMask;
-    const overflowMSB = sumMSB > accMask;
+    // Stage 2: Carry Prediction Interface (Evaluating highest bits of LSB)
+    const topBitIdx = lsbWidth - 1;
+    const aTopBit = (aLSB >> topBitIdx) & 1;
+    const bTopBit = (bLSB >> topBitIdx) & 1;
+    
+    // Evaluate second highest LSB bit if available for majority logic
+    const secondBitIdx = lsbWidth - 2;
+    const aSecBit = secondBitIdx >= 0 ? (aLSB >> secondBitIdx) & 1 : 0;
+    const bSecBit = secondBitIdx >= 0 ? (bLSB >> secondBitIdx) & 1 : 0;
 
-    // LSB ETA-1 Approximate Logic
-    let inaccR = 0;
-    let trigBit = -1; // -1 means no trigger
-    const bitTrace = [];
+    // Prediction condition: (A_top AND B_top) OR ((A_top OR B_top) AND (A_sec AND B_sec))
+    const isAndCarry = (aTopBit === 1 && bTopBit === 1);
+    const isMajCarry = isAndCarry || ((aTopBit === 1 || bTopBit === 1) && (aSecBit === 1 && bSecBit === 1));
+    const cPred = isMajCarry ? 1 : 0;
 
-    for (let bit = split - 1; bit >= 0; bit--) {
-      const bitA = (aLSB >> bit) & 1;
-      const bitB = (bLSB >> bit) & 1;
+    // Stage 3: Precise MSB Block (Bits 8..15) with Predicted Carry-In
+    const aMSB = (a >> lsbWidth) & msbMask;
+    const bMSB = (b >> lsbWidth) & msbMask;
+    const sumMSBUnclamped = aMSB + bMSB + cPred;
+    const sMSB = sumMSBUnclamped & msbMask;
+    const overflowMSB = sumMSBUnclamped > msbMask;
 
-      if (trigBit >= 0) {
-        // Trigger already hit in higher bit -> force this bit to 1
-        inaccR |= (1 << bit);
-        bitTrace.push({
-          bit,
-          bitA,
-          bitB,
-          outBit: 1,
-          action: 'forced',
-          desc: `Bit ${bit}: Force 1 (Triggered earlier at bit ${trigBit})`
-        });
-      } else if (bitA === 1 && bitB === 1) {
-        // Both bits are 1 -> TRIGGER!
-        trigBit = bit;
-        // Force bit and all lower bits to 1
-        const forceMask = (1 << (bit + 1)) - 1;
-        inaccR |= forceMask;
-        bitTrace.push({
-          bit,
-          bitA,
-          bitB,
-          outBit: 1,
-          action: 'trigger',
-          desc: `Bit ${bit}: A=1, B=1 → TRIGGER! Set bits ${bit}..0 to 1.`
-        });
-      } else {
-        // Normal XOR
-        const xorRes = bitA ^ bitB;
-        inaccR |= (xorRes << bit);
-        bitTrace.push({
-          bit,
-          bitA,
-          bitB,
-          outBit: xorRes,
-          action: 'xor',
-          desc: `Bit ${bit}: A=${bitA}, B=${bitB} → XOR = ${xorRes}`
-        });
-      }
-    }
-
-    const approxSum = ((resMSB << split) | inaccR) & 0xFF;
-    const exactSum = (a + b) & 0xFF;
+    // Assemble 16-bit Approximate Sum
+    const approxSum = ((sMSB << lsbWidth) | sLSB) & 0xFFFF;
+    const exactSum = (a + b) & 0xFFFF;
     const exactUnclamped = a + b;
     const absError = Math.abs(approxSum - exactSum);
     const relError = exactSum > 0 ? absError / exactSum : (absError > 0 ? 1 : 0);
 
+    // Build step trace for animated execution UI
+    const bitTrace = [];
+
+    // Stage 1 LSB trace (Bits 0..7)
+    for (let bit = lsbWidth - 1; bit >= 0; bit--) {
+      const bitA = (aLSB >> bit) & 1;
+      const bitB = (bLSB >> bit) & 1;
+      const bitOut = (sLSB >> bit) & 1;
+      bitTrace.push({
+        bit,
+        stage: 1,
+        bitA,
+        bitB,
+        outBit: bitOut,
+        action: 'or_approx',
+        desc: `Bit ${bit} [Stage 1 LSB]: A=${bitA}, B=${bitB} → OR = ${bitOut}`
+      });
+    }
+
+    // Stage 2 Predictor trace
+    bitTrace.push({
+      stage: 2,
+      bitA: aTopBit,
+      bitB: bTopBit,
+      cPred,
+      action: cPred ? 'predict_carry_one' : 'predict_carry_zero',
+      desc: `Stage 2 Predictor: Evaluated Top LSB Bit ${topBitIdx} (A=${aTopBit}, B=${bTopBit}) → Predicted Carry-In C_pred = ${cPred}`
+    });
+
+    // Stage 3 MSB trace (Bits 8..15)
+    for (let bit = 15; bit >= lsbWidth; bit--) {
+      const bitIdxInMSB = bit - lsbWidth;
+      const bitA = (aMSB >> bitIdxInMSB) & 1;
+      const bitB = (bMSB >> bitIdxInMSB) & 1;
+      const bitOut = (sMSB >> bitIdxInMSB) & 1;
+      bitTrace.push({
+        bit,
+        stage: 3,
+        bitA,
+        bitB,
+        outBit: bitOut,
+        action: 'exact_msb',
+        desc: `Bit ${bit} [Stage 3 MSB]: Precise Ripple Carry Addition (A=${bitA}, B=${bitB}) → Sum = ${bitOut}`
+      });
+    }
+
     return {
       a,
       b,
-      split,
+      lsbWidth,
+      msbWidth,
       approxSum,
       exactSum,
       exactUnclamped,
       absError,
       relError,
-      trigBit,
-      inaccR,
-      resMSB,
+      sLSB,
+      sMSB,
+      cPred,
+      isAndCarry,
+      isMajCarry,
       overflowMSB,
-      bitTrace,
-      inaccBits: trigBit >= 0 ? trigBit + 1 : 0
+      bitTrace
     };
   }
 
   /**
-   * Fast vector addition for typed arrays (Image pixels)
+   * Fast inline 16-bit Carry-Predictive adder for image processing loops
+   * Operates on 8-bit or 16-bit pixel values
    */
-  static addPixelBuffers(arr1, arr2, outApprox, outExact, outDiff, split = 4, alpha = 0.5) {
+  static fastHybridAdder(a, b, lsbWidth = 8) {
+    const lsbMask = (1 << lsbWidth) - 1;
+    const msbMask = (1 << (16 - lsbWidth)) - 1;
+
+    const sLSB = (a & lsbMask) | (b & lsbMask);
+
+    // Carry Predictor from bit (lsbWidth - 1)
+    const topShift = lsbWidth - 1;
+    const cPred = (((a >> topShift) & 1) && ((b >> topShift) & 1)) ? 1 : 0;
+
+    const sMSB = (((a >> lsbWidth) & msbMask) + ((b >> lsbWidth) & msbMask) + cPred) & msbMask;
+
+    return ((sMSB << lsbWidth) | sLSB) & 0xFFFF;
+  }
+
+  /**
+   * Fast 8-bit Carry-Predictive pixel adder (4-bit LSB OR + 1-bit Predictor + 4-bit MSB Exact)
+   */
+  static fastPixelAdder8bit(a, b) {
+    const sLSB = (a & 0x0F) | (b & 0x0F);
+    const cPred = ((a & 0x08) && (b & 0x08)) ? 1 : 0;
+    const sMSB = (((a >> 4) & 0x0F) + ((b >> 4) & 0x0F) + cPred) & 0x0F;
+    return (sMSB << 4) | sLSB;
+  }
+
+  /**
+   * Fast vector addition for image canvas buffers
+   */
+  static addPixelBuffers(arr1, arr2, outApprox, outExact, outDiff, lsbWidth = 4, alpha = 0.5) {
     const len = arr1.length;
     let totalED = 0;
     let totalSquareErr = 0;
@@ -135,7 +180,7 @@ class ETA1Adder {
         const ex = Math.min(255, p1 + p2);
         outExact[i + c] = ex;
 
-        const ap = ETA1Adder.fastHybridAdder(p1, p2, split);
+        const ap = ETA1Adder.fastPixelAdder8bit(p1, p2);
         outApprox[i + c] = ap;
 
         const diff = Math.abs(ex - ap);
@@ -159,46 +204,9 @@ class ETA1Adder {
   }
 
   /**
-   * Fast inline 8-bit hybrid adder for image processing loop
+   * Cumulative Vector Embedding Distance computation using 16-Bit Carry-Predictive Adder
    */
-  static fastHybridAdder(a, b, split = 4) {
-    const inaccMask = (1 << split) - 1;
-    const aLSB = a & inaccMask;
-    const bLSB = b & inaccMask;
-
-    let inaccR = 0;
-    let forceOne = false;
-
-    for (let bit = split - 1; bit >= 0; bit--) {
-      const bitA = (aLSB >> bit) & 1;
-      const bitB = (bLSB >> bit) & 1;
-
-      if (forceOne) {
-        inaccR |= (1 << bit);
-      } else if (bitA === 1 && bitB === 1) {
-        forceOne = true;
-        inaccR |= (1 << (bit + 1)) - 1;
-        break;
-      } else {
-        inaccR |= ((bitA ^ bitB) << bit);
-      }
-    }
-
-    const accBits = 8 - split;
-    const accMask = (1 << accBits) - 1;
-    const sumMSB = ((a >> split) & accMask) + ((b >> split) & accMask);
-    
-    return (((sumMSB & accMask) << split) | inaccR) & 0xFF;
-  }
-
-  /**
-   * Vector Embedding Distance computation using 8-bit ETA-1 approximate addition.
-   * Matches the Notebook's approx_distance function.
-   * @param {Array<number>} v1 - Feature vector 1 [0..255]
-   * @param {Array<number>} v2 - Feature vector 2 [0..255]
-   * @param {number} split - Inaccurate bit width
-   */
-  static approxVectorDistance(v1, v2, split = 4) {
+  static approxVectorDistance(v1, v2, lsbWidth = 8) {
     let totalApproxDist = 0;
     let totalExactDist = 0;
     const len = Math.min(v1.length, v2.length);
@@ -206,7 +214,7 @@ class ETA1Adder {
     for (let i = 0; i < len; i++) {
       const diff = Math.abs(Math.round(v1[i]) - Math.round(v2[i]));
       totalExactDist += diff;
-      totalApproxDist = ETA1Adder.fastHybridAdder(totalApproxDist, diff, split);
+      totalApproxDist = ETA1Adder.fastHybridAdder(totalApproxDist, diff, lsbWidth);
     }
 
     return {
@@ -218,5 +226,5 @@ class ETA1Adder {
   }
 }
 
-// Export for browser
+// Export for browser environment
 window.ETA1Adder = ETA1Adder;
