@@ -1,13 +1,14 @@
 /**
  * Interactive Bit-Level Circuit Simulator Module
- * Renders 16-Bit Carry-Predictive ETA-1 Variant Approximate Adder (3 Operational Stages)
+ * Handles bit toggling, animations, scan stepper, and formula updates.
+ * Updated to support 3-Stage Carry-Predictive Approximate Adder logic.
  */
 
 class BitSimulator {
   constructor() {
-    this.operandA = 39514; // Default 16-bit: 0x9A5A = 1001 1010 0101 1010
-    this.operandB = 18451; // Default 16-bit: 0x4813 = 0100 1000 0001 0011
-    this.lsbWidth = 8;     // 8 bits LSB (Stage 1), 8 bits MSB (Stage 3)
+    this.operandA = 154;
+    this.operandB = 19;
+    this.splitPoint = 4;
     this.isAnimRunning = false;
     this.animTimer = null;
     this.currentStep = -1;
@@ -21,6 +22,7 @@ class BitSimulator {
   }
 
   bindEvents() {
+    // Inputs & Sliders
     const inputA = document.getElementById('inp-a');
     const inputB = document.getElementById('inp-b');
     const rangeA = document.getElementById('sl-a');
@@ -46,19 +48,19 @@ class BitSimulator {
   }
 
   setA(val) {
-    this.operandA = Math.max(0, Math.min(65535, parseInt(val) || 0));
+    this.operandA = Math.max(0, Math.min(255, parseInt(val) || 0));
     this.updateControls();
     this.render();
   }
 
   setB(val) {
-    this.operandB = Math.max(0, Math.min(65535, parseInt(val) || 0));
+    this.operandB = Math.max(0, Math.min(255, parseInt(val) || 0));
     this.updateControls();
     this.render();
   }
 
   setSplit(val) {
-    this.lsbWidth = Math.max(1, Math.min(15, parseInt(val) || 8));
+    this.splitPoint = Math.max(1, Math.min(7, parseInt(val) || 4));
     this.updateControls();
     this.render();
   }
@@ -86,69 +88,50 @@ class BitSimulator {
     if (inpB) inpB.value = this.operandB;
     if (slA) slA.value = this.operandA;
     if (slB) slB.value = this.operandB;
-    if (slSplit) slSplit.value = this.lsbWidth;
+    if (slSplit) slSplit.value = this.splitPoint;
 
-    const msbW = 16 - this.lsbWidth;
     if (lblSplit) {
-      lblSplit.textContent = `Stage 1 LSB: ${this.lsbWidth} Bits (0..${this.lsbWidth - 1}) | Stage 3 MSB: ${msbW} Bits (15..${this.lsbWidth})`;
+      lblSplit.textContent = `Bits ${this.splitPoint - 1}..0 (${this.splitPoint} Inaccurate Bits)`;
     }
     if (hintSplit) {
-      hintSplit.textContent = `Stage 1: LSB OR Logic (Bits 0..${this.lsbWidth - 1}) | Stage 2: Carry Predictor (Bit ${this.lsbWidth - 1}) | Stage 3: MSB Precise Ripple Carry (Bits 15..${this.lsbWidth})`;
+      hintSplit.textContent = `Precise MSB: bits 7..${this.splitPoint} | Approximate OR LSB: bits ${this.splitPoint - 1}..0`;
     }
   }
 
   render() {
-    const res = ETA1Adder.compute(this.operandA, this.operandB, this.lsbWidth);
-    this.render16BitGrid(res);
+    const res = ETA1Adder.compute(this.operandA, this.operandB, this.splitPoint);
+    this.renderBitGrid(res);
     this.renderMetricsCards(res);
     this.renderTraceSteps(res);
   }
 
-  render16BitGrid(res) {
+  renderBitGrid(res) {
     const container = document.getElementById('bit-visualization-container');
     if (!container) return;
 
-    const { a, b, lsbWidth, approxSum, exactSum, cPred, isAndCarry } = res;
+    const { a, b, split, approxSum, exactSum, carryPred } = res;
 
-    const to16Bits = (num) => Array.from({ length: 16 }, (_, i) => (num >> (15 - i)) & 1);
-    const bitsA = to16Bits(a);
-    const bitsB = to16Bits(b);
-    const bitsAp = to16Bits(approxSum);
-    const bitsEx = to16Bits(exactSum);
+    const toBits = (num) => Array.from({ length: 8 }, (_, i) => (num >> (7 - i)) & 1);
+    const bitsA = toBits(a);
+    const bitsB = toBits(b);
+    const bitsAp = toBits(approxSum);
+    const bitsEx = toBits(exactSum);
 
     let html = `
-      <!-- 3-STAGE ARCHITECTURE BANNER -->
-      <div class="architecture-stages-banner">
-        <div class="stage-block stage-3-hdr">
-          <span class="stage-title">STAGE 3: PRECISE MSB BLOCK</span>
-          <span class="stage-desc">Bits 15..${lsbWidth} (${16 - lsbWidth} Bits) &bull; 100% Accurate Ripple Carry Addition + C_pred</span>
-        </div>
-        <div class="stage-block stage-2-hdr">
-          <span class="stage-title">STAGE 2: CARRY PREDICTOR</span>
-          <span class="stage-desc">Bit ${lsbWidth - 1} &bull; C_pred = ${cPred}</span>
-        </div>
-        <div class="stage-block stage-1-hdr">
-          <span class="stage-title">STAGE 1: APPROXIMATE LSB BLOCK</span>
-          <span class="stage-desc">Bits ${lsbWidth - 1}..0 (${lsbWidth} Bits) &bull; Low-Power Bitwise OR Logic</span>
-        </div>
-      </div>
-
       <div class="bit-circuit-grid">
         <!-- Position labels -->
         <div class="bit-row bit-header-row">
-          <span class="row-label">BIT POS</span>
+          <span class="row-label">BIT</span>
           <div class="bit-cells">
     `;
 
-    for (let i = 0; i < 16; i++) {
-      const bitPos = 15 - i;
-      if (bitPos === lsbWidth - 1) {
-        html += `<div class="stage-separator-label">PREDICTOR</div>`;
+    for (let i = 0; i < 8; i++) {
+      const bitPos = 7 - i;
+      if (bitPos === split - 1 && i > 0) {
+        html += `<div class="bit-divider-label">SPLIT</div>`;
       }
-      const isMSB = bitPos >= lsbWidth;
-      const isPredBit = bitPos === lsbWidth - 1;
-      let hdrCls = isMSB ? 'acc-hdr' : (isPredBit ? 'pred-hdr' : 'inacc-hdr');
-      html += `<div class="bit-box header-bit ${hdrCls}">${bitPos}</div>`;
+      const isAcc = bitPos >= split;
+      html += `<div class="bit-box header-bit ${isAcc ? 'acc-hdr' : 'inacc-hdr'}">${bitPos}</div>`;
     }
 
     html += `
@@ -161,15 +144,13 @@ class BitSimulator {
           <div class="bit-cells">
     `;
 
-    for (let i = 0; i < 16; i++) {
-      const bitPos = 15 - i;
-      if (bitPos === lsbWidth - 1) html += `<div class="stage-separator"></div>`;
-      const isMSB = bitPos >= lsbWidth;
-      const isPredBit = bitPos === lsbWidth - 1;
-      let zoneCls = isMSB ? 'acc-zone' : (isPredBit ? 'pred-zone' : 'inacc-zone');
-
+    for (let i = 0; i < 8; i++) {
+      const bitPos = 7 - i;
+      if (bitPos === split - 1 && i > 0) html += `<div class="bit-divider"></div>`;
+      const isAcc = bitPos >= split;
+      const isTopLSB = bitPos === split - 1;
       html += `
-        <div class="bit-box ${zoneCls} ${bitsA[i] ? 'is-one' : 'is-zero'} ${isPredBit && cPred ? 'is-trig' : ''}"
+        <div class="bit-box ${isAcc ? 'acc-zone' : 'inacc-zone'} ${bitsA[i] ? 'is-one' : 'is-zero'} ${isTopLSB && carryPred ? 'is-trig' : ''}"
              onclick="window.bitSim.toggleBit('a', ${bitPos})" title="Click to toggle Operand A bit ${bitPos}">
           ${bitsA[i]}
         </div>`;
@@ -185,15 +166,13 @@ class BitSimulator {
           <div class="bit-cells">
     `;
 
-    for (let i = 0; i < 16; i++) {
-      const bitPos = 15 - i;
-      if (bitPos === lsbWidth - 1) html += `<div class="stage-separator"></div>`;
-      const isMSB = bitPos >= lsbWidth;
-      const isPredBit = bitPos === lsbWidth - 1;
-      let zoneCls = isMSB ? 'acc-zone' : (isPredBit ? 'pred-zone' : 'inacc-zone');
-
+    for (let i = 0; i < 8; i++) {
+      const bitPos = 7 - i;
+      if (bitPos === split - 1 && i > 0) html += `<div class="bit-divider"></div>`;
+      const isAcc = bitPos >= split;
+      const isTopLSB = bitPos === split - 1;
       html += `
-        <div class="bit-box ${zoneCls} ${bitsB[i] ? 'is-one' : 'is-zero'} ${isPredBit && cPred ? 'is-trig' : ''}"
+        <div class="bit-box ${isAcc ? 'acc-zone' : 'inacc-zone'} ${bitsB[i] ? 'is-one' : 'is-zero'} ${isTopLSB && carryPred ? 'is-trig' : ''}"
              onclick="window.bitSim.toggleBit('b', ${bitPos})" title="Click to toggle Operand B bit ${bitPos}">
           ${bitsB[i]}
         </div>`;
@@ -205,20 +184,24 @@ class BitSimulator {
 
         <!-- Divider line -->
         <div class="bit-sep-line">
-          <span class="sep-text">16-Bit Carry-Predictive Hybrid Adder Result</span>
+          <span class="sep-text">Carry-Predictive ETA-1 Hybrid Addition Result</span>
         </div>
 
         <!-- Approx Sum Output -->
         <div class="bit-row result-row">
-          <span class="row-label">≈ Approx</span>
+          <span class="row-label">≈ ETA-1</span>
           <div class="bit-cells">
     `;
 
-    for (let i = 0; i < 16; i++) {
-      const bitPos = 15 - i;
-      if (bitPos === lsbWidth - 1) html += `<div class="stage-separator"></div>`;
-      const isMSB = bitPos >= lsbWidth;
-      let cls = isMSB ? 'res-exact-bit' : 'res-or-bit';
+    for (let i = 0; i < 8; i++) {
+      const bitPos = 7 - i;
+      if (bitPos === split - 1 && i > 0) html += `<div class="bit-divider"></div>`;
+      const isAcc = bitPos >= split;
+
+      let cls = 'res-exact-bit';
+      if (!isAcc) {
+        cls = 'res-xor-bit';
+      }
 
       html += `
         <div class="bit-box ${cls}">
@@ -236,9 +219,9 @@ class BitSimulator {
           <div class="bit-cells">
     `;
 
-    for (let i = 0; i < 16; i++) {
-      const bitPos = 15 - i;
-      if (bitPos === lsbWidth - 1) html += `<div class="stage-separator"></div>`;
+    for (let i = 0; i < 8; i++) {
+      const bitPos = 7 - i;
+      if (bitPos === split - 1 && i > 0) html += `<div class="bit-divider"></div>`;
       html += `<div class="bit-box res-true-exact">${bitsEx[i]}</div>`;
     }
 
@@ -247,16 +230,16 @@ class BitSimulator {
         </div>
       </div>
 
-      <!-- Stage 2 Carry Prediction Interface Status Bar -->
+      <!-- Carry Status Bar -->
       <div class="carry-status-bar">
-        <div class="status-badge ${cPred ? 'green' : 'purple'}">
-          Stage 2 Carry Predictor (Bit ${lsbWidth - 1}): <strong>C_pred = ${cPred}</strong>
+        <div class="status-badge ${carryPred ? 'green' : 'amber'}">
+          Carry Predictor Interface: ${carryPred ? 'Predicted Carry = 1 (A=1 & B=1 at Bit ' + (split-1) + ')' : 'Predicted Carry = 0'}
         </div>
-        <div class="status-badge blue">
-          Stage 1 LSB: Bitwise OR Gate Bypass (Zero Carry Chain Latency)
+        <div class="status-badge ${res.overflowMSB ? 'red' : 'blue'}">
+          Precise MSB Overflow: ${res.overflowMSB ? 'YES (Sum > 255)' : 'NO'}
         </div>
-        <div class="status-badge ${res.overflowMSB ? 'red' : 'amber'}">
-          Stage 3 MSB: ${res.overflowMSB ? 'MSB Overflow (> 65535)' : 'MSB Precision Preserved'}
+        <div class="status-badge purple">
+          LSB Stage: Bitwise OR Gate Logic
         </div>
       </div>
     `;
@@ -265,7 +248,7 @@ class BitSimulator {
   }
 
   renderMetricsCards(res) {
-    const { approxSum, exactSum, absError, relError, cPred, lsbWidth } = res;
+    const { approxSum, exactSum, absError, relError, split } = res;
 
     const elApprox = document.getElementById('metric-approx');
     const elExact = document.getElementById('metric-exact');
@@ -279,12 +262,10 @@ class BitSimulator {
     if (elError) elError.textContent = absError;
     if (elRelErr) elRelErr.textContent = `${(relError * 100).toFixed(2)}%`;
 
-    const max16Val = 65535;
-    const psnr = absError === 0 ? '∞ (Exact)' : `${(10 * Math.log10((max16Val * max16Val) / (absError * absError))).toFixed(2)} dB`;
+    const psnr = absError === 0 ? '∞ (Exact)' : `${(10 * Math.log10((255 * 255) / (absError * absError))).toFixed(2)} dB`;
     if (elPsnr) elPsnr.textContent = psnr;
 
-    // Power savings: 16-bit Carry-Predictive ETA-1 achieves ~45.8% power drop over 16-bit RCA
-    const powerSaved = ((lsbWidth / 16) * 85.0).toFixed(1);
+    const powerSaved = (split * 10.5).toFixed(1);
     if (elPower) elPower.textContent = `-${powerSaved}% mW`;
   }
 
@@ -292,15 +273,24 @@ class BitSimulator {
     const container = document.getElementById('algo-trace-steps');
     if (!container) return;
 
-    const { a, b, lsbWidth, approxSum, exactSum, cPred, sLSB, sMSB, bitTrace } = res;
+    const { a, b, split, approxSum, exactSum, carryPred, bitTrace } = res;
 
     let html = `
       <ol class="trace-list">
-        <li><strong>Architecture Partitioning:</strong> 16-bit operands divided into <strong>Stage 1 LSB Block</strong> (Bits ${lsbWidth - 1}..0), <strong>Stage 2 Carry Predictor Interface</strong> (Bit ${lsbWidth - 1}), and <strong>Stage 3 MSB Block</strong> (Bits 15..${lsbWidth}).</li>
-        <li><strong>Stage 1 (Approx LSB Block):</strong> Bitwise OR gate evaluation S_LSB = (A & 0x${((1<<lsbWidth)-1).toString(16).toUpperCase()}) | (B & 0x${((1<<lsbWidth)-1).toString(16).toUpperCase()}) = <strong>${sLSB}</strong> (0b${sLSB.toString(2).padStart(lsbWidth, '0')}). Bypasses Full Adder ripple carry chain for zero propagation delay.</li>
-        <li><strong>Stage 2 (Carry Prediction Interface):</strong> Evaluates Bit ${lsbWidth - 1} operands (A_${lsbWidth - 1} = ${(a >> (lsbWidth - 1)) & 1}, B_${lsbWidth - 1} = ${(b >> (lsbWidth - 1)) & 1}). Predicts carry-in: <strong>C_pred = ${cPred}</strong> forwarded into Stage 3 MSB block.</li>
-        <li><strong>Stage 3 (Precise MSB Block):</strong> Exact 100% accurate Ripple Carry addition S_MSB = A_MSB (${a >> lsbWidth}) + B_MSB (${b >> lsbWidth}) + C_pred (${cPred}) = <strong>${sMSB}</strong> (0b${sMSB.toString(2).padStart(16 - lsbWidth, '0')}).</li>
-        <li>🎯 <strong>Final Result:</strong> 16-Bit Approx Sum = <strong>${approxSum}</strong> (0x${approxSum.toString(16).toUpperCase()}), Exact Sum = <strong>${exactSum}</strong> (0x${exactSum.toString(16).toUpperCase()}), Error Distance = <strong>${Math.abs(approxSum - exactSum)}</strong>.</li>
+        <li><strong>Stage 1 — Architecture Partition:</strong> 8-bit operands partitioned into <strong>Precise MSB Block</strong> (Bits 7..${split}) and <strong>Approximate LSB Block</strong> (Bits ${split - 1}..0).</li>
+        <li><strong>Stage 1 — LSB Block (Bitwise OR Logic):</strong> Summation approximated via simplified OR gates ($A_i \\mid B_i$).</li>
+        <li><strong>Stage 2 — Carry Prediction Interface:</strong> Evaluated top LSB bit ${split - 1}: A=${(a >> (split - 1)) & 1}, B=${(b >> (split - 1)) & 1} → Predicted Carry = <strong>${carryPred}</strong> forwarded directly to MSB block.</li>
+        <li><strong>Stage 3 — Precise MSB Block:</strong> A_MSB (${a >> split}) + B_MSB (${b >> split}) + Carry_pred (${carryPred}) = ${((a >> split) + (b >> split) + carryPred)} (100% Accurate Addition).</li>
+    `;
+
+    bitTrace.forEach((step) => {
+      let icon = '🔹';
+      if (step.action === 'carry_predict') icon = '⚡';
+      html += `<li class="step-${step.action}">${icon} ${step.desc}</li>`;
+    });
+
+    html += `
+        <li>🎯 <strong>Final Result:</strong> Carry-Predictive ETA-1 Approx Sum = <strong>${approxSum}</strong> (0b${approxSum.toString(2).padStart(8, '0')}), Exact Sum = <strong>${exactSum}</strong> (0b${exactSum.toString(2).padStart(8, '0')}), Error Distance = <strong>${Math.abs(approxSum - exactSum)}</strong>.</li>
       </ol>
     `;
 
