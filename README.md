@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/badge/Hardware-VLSI%20%7C%2045nm%20CMOS-0284c7?style=for-the-badge" alt="VLSI 45nm CMOS" />
   <img src="https://img.shields.io/badge/Python-Jupyter_Notebooks-F37626?style=for-the-badge&logo=jupyter&logoColor=white" alt="Jupyter" />
   <img src="https://img.shields.io/badge/Simulator-HTML5%20%7C%20Canvas%20%7C%20ES6-E34F26?style=for-the-badge&logo=html5&logoColor=white" alt="HTML5 Simulator" />
-  <img src="https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge" alt="License MIT" />
+  <img src="https://img.shields.io/badge/License-All_Rights_Reserved-red.svg?style=for-the-badge" alt="All Rights Reserved" />
 </p>
 
 An end-to-end research, simulation, and hardware benchmarking suite for the **MSB-Triggered ETA-1 (Error-Tolerant Adder Type I)** hybrid approximate arithmetic architecture. Demonstrates substantial power, delay, and silicon area savings in error-resilient applications including edge AI, computer vision filtering, and biometric facial attendance verification.
@@ -159,7 +159,7 @@ Synthesized under TSMC 45nm standard cell CMOS technology library:
 ├── images/
 │   ├── diagrams/                            # System schematics, block diagrams, and Mermaid renders
 │   └── *.png                                # Benchmarking plots, PSNR curves, and sample outputs
-├── LICENSE                                  # MIT License File
+├── LICENSE                                  # All Rights Reserved & IP Terms
 └── README.md                                # Master project documentation
 ```
 
@@ -198,8 +198,9 @@ jupyter notebook
 
 ---
 
-## Author & License
+## Intellectual Property & License
 
 - **Developer**: Hitesh V S
 - **GitHub**: [@Hitesh070](https://github.com/Hitesh070)
-- **License**: Released under the [MIT License](LICENSE).
+- **Copyright**: © 2025–2026 Hitesh V S. All Rights Reserved.
+- **Intellectual Property Notice**: This repository contains proprietary approximate arithmetic architectures, gate-level trigger mechanisms, and experimental benchmarking frameworks associated with patent filings and research manuscripts under review. No license is granted to copy, distribute, modify, or commercially exploit any code, hardware schematics, or simulation models without prior explicit written permission from the author.
