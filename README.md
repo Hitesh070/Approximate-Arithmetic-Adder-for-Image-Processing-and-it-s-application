@@ -55,7 +55,7 @@ Digital signal processing, edge machine learning inference, and computer vision 
 This research implements the **MSB-Triggered ETA-1 Hybrid Arithmetic Architecture**:
 - **Bit Partitioning**: Operands $A$ and $B$ are partitioned at inaccurate split point $K$ into an accurate MSB block (bits $N-1 \dots K$) and an inaccurate LSB block (bits $K-1 \dots 0$).
 - **MSB-to-LSB Trigger Scan**: The LSB block evaluates bits from index $K-1$ down to $0$. When both inputs are active ($A_i = B_i = 1$), a generate trigger forces bit $i$ and all remaining lower bits ($i-1 \dots 0$) to logic `1`.
-- **Carry Severing**: The carry propagation between the inaccurate LSB block and the accurate MSB block is severed ($C_{\text{out\_inacc}} = 0$), eliminating carry ripple delay.
+- **Carry Severing**: The carry propagation between the inaccurate LSB block and the accurate MSB block is severed ($C_{\text{out}} = 0$), eliminating carry ripple delay.
 
 ### Project Objectives
 - Reduce dynamic switching power by >40% compared to exact Ripple Carry Addition (RCA).
@@ -96,7 +96,7 @@ flowchart TD
     end
 
     subgraph AccurateStage ["Accurate MSB Section"]
-        RCA["Exact Ripple Carry / CLA Addition\nS_MSB = (A >> K) + (B >> K)"]
+        RCA["Exact Ripple Carry / CLA Addition<br/>S_MSB = (A &gt;&gt; K) + (B &gt;&gt; K)"]
     end
 
     subgraph InaccurateStage ["Inaccurate LSB Section (MSB-to-LSB Scan)"]
@@ -104,11 +104,11 @@ flowchart TD
         Trigger{"Both A_i == 1 and B_i == 1?"}
         Force["Bit i = 1, All Lower Bits (i-1..0) Forced to 1"]
         XOR["Bit i = A_i ⊕ B_i"]
-        Cutoff["Sever Carry-Out to MSB:\nC_out_inacc = 0"]
+        Cutoff["Sever Carry-Out to MSB:<br/>C_out = 0"]
     end
 
     subgraph Output ["Final Hybrid Recombination"]
-        Sum["Recombined Output:\nS = (S_MSB << K) | S_LSB"]
+        Sum["Recombined Output:<br/>S = (S_MSB &lt;&lt; K) OR S_LSB"]
     end
 
     A & B --> Split
@@ -130,7 +130,7 @@ flowchart TD
    - Before trigger condition occurs:
      $$\text{Bit } i = A_i \oplus B_i$$
    - Carry isolation:
-     $$C_{\text{out\_inacc}} = 0$$
+     $$C_{\text{out}} = 0 \quad (\text{Carry Cutoff to MSB})$$
 
 ---
 
@@ -262,26 +262,26 @@ jupyter notebook
 
 ```mermaid
 flowchart TD
-    Start([Input Operands A, B]) --> SplitBits[Partition Bits at Split Point K]
+    Start(["Input Operands A, B"]) --> SplitBits["Partition Bits at Split Point K"]
     SplitBits --> ParallelPaths
     
     subgraph ParallelPaths ["Concurrent Processing"]
-        MSB_Exec[Compute Exact MSB Sum:\nS_MSB = A_MSB + B_MSB]
-        LSB_Init[Initialize Bit Index i = K - 1\nCarry = 0]
+        MSB_Exec["Compute Exact MSB Sum:<br/>S_MSB = A_MSB + B_MSB"]
+        LSB_Init["Initialize Bit Index i = K - 1<br/>Carry = 0"]
     end
 
-    LSB_Init --> ScanLoop{i >= 0?}
-    ScanLoop -- Yes --> CheckTrigger{A_i == 1 AND B_i == 1?}
+    LSB_Init --> ScanLoop{"i >= 0?"}
+    ScanLoop -- Yes --> CheckTrigger{"A_i == 1 AND B_i == 1?"}
     
-    CheckTrigger -- Yes (Generate Trigger) --> ForceBits[Set S_i = 1\nForce All Lower Bits S_i-1..0 = 1]
-    ForceBits --> SeverCarry[Set C_out_inacc = 0]
+    CheckTrigger -- Yes (Generate Trigger) --> ForceBits["Set S_i = 1<br/>Force All Lower Bits S_i-1..0 = 1"]
+    ForceBits --> SeverCarry["Sever Carry-Out to MSB:<br/>C_out = 0"]
     
-    CheckTrigger -- No --> NormalXOR[Set S_i = A_i ⊕ B_i]
-    NormalXOR --> Decrement[i = i - 1] --> ScanLoop
+    CheckTrigger -- No --> NormalXOR["Set S_i = A_i ⊕ B_i"]
+    NormalXOR --> Decrement["Decrement Index:<br/>i = i - 1"] --> ScanLoop
     
     ScanLoop -- No (Scan Finished) --> SeverCarry
-    SeverCarry & MSB_Exec --> MergeOutput[Assemble Hybrid Sum:\nS = (S_MSB << K) | S_LSB]
-    MergeOutput --> End([Final Approximate Result S])
+    SeverCarry & MSB_Exec --> MergeOutput["Assemble Hybrid Sum:<br/>S = (S_MSB &lt;&lt; K) OR S_LSB"]
+    MergeOutput --> End(["Final Approximate Result S"])
 ```
 
 ---
