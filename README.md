@@ -111,7 +111,8 @@ flowchart TD
         Sum["Recombined Output:<br/>S = (S_MSB &lt;&lt; K) OR S_LSB"]
     end
 
-    A & B --> Split
+    A --> Split
+    B --> Split
     MSB_Bits --> RCA --> Sum
     LSB_Bits --> Scan --> Trigger
     Trigger -- Yes --> Force --> Cutoff --> Sum
@@ -295,7 +296,8 @@ flowchart TD
     NormalXOR --> Decrement["Decrement Index:<br/>i = i - 1"] --> ScanLoop
     
     ScanLoop -- No (Scan Finished) --> SeverCarry
-    SeverCarry & MSB_Exec --> MergeOutput["Assemble Hybrid Sum:<br/>S = (S_MSB &lt;&lt; K) OR S_LSB"]
+    SeverCarry --> MergeOutput["Assemble Hybrid Sum:<br/>S = (S_MSB &lt;&lt; K) OR S_LSB"]
+    MSB_Exec --> MergeOutput
     MergeOutput --> End(["Final Approximate Result S"])
 ```
 
