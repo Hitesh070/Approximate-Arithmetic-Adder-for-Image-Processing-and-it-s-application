@@ -120,17 +120,32 @@ flowchart TD
 
 ### Mathematical Formulation
 
-1. **Accurate MSB Block (Bits $7 \dots K$)**:
-   Calculated through standard exact Ripple Carry Addition (RCA):
-   $$S_{\text{MSB}} = (A \gg K) + (B \gg K)$$
-2. **Inaccurate LSB Block (Bits $K-1 \dots 0$)**:
-   Scanned sequentially from MSB position $K-1$ down to LSB position $0$:
-   - If $A_i = 1$ and $B_i = 1$, the generate condition triggers:
-     $$\text{Bit } i = 1, \quad \text{and all lower bits } (i-1 \dots 0) = 1$$
-   - Before trigger condition occurs:
-     $$\text{Bit } i = A_i \oplus B_i$$
-   - Carry isolation:
-     $$C_{\text{out}} = 0 \quad (\text{Carry Cutoff to MSB})$$
+#### 1. Accurate MSB Block (Bits $7 \dots K$)
+Calculated through standard exact Ripple Carry Addition (RCA):
+
+$$
+S_{\text{MSB}} = (A \gg K) + (B \gg K)
+$$
+
+#### 2. Inaccurate LSB Block (Bits $K-1 \dots 0$)
+Scanned sequentially from MSB position $K-1$ down to LSB position $0$:
+- If $A_i = 1$ and $B_i = 1$, the generate condition triggers:
+
+$$
+\text{Bit } i = 1, \quad \text{and all lower bits } (i-1 \dots 0) = 1
+$$
+
+- Before trigger condition occurs:
+
+$$
+\text{Bit } i = A_i \oplus B_i
+$$
+
+- Carry isolation:
+
+$$
+C_{\text{out}} = 0 \quad (\text{Carry Cutoff to MSB})
+$$
 
 ---
 
